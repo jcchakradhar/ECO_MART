@@ -8,6 +8,7 @@ import {
   selectBrands,
   selectCategories,
   selectProductListStatus,
+  
   selectTotalItems,
 } from '../productSlice';
 import { Dialog, Disclosure, Menu, Transition } from '@headlessui/react';
