@@ -8,25 +8,17 @@ import {
   selectBrands,
   selectCategories,
   selectProductListStatus,
-  
   selectTotalItems,
 } from '../productSlice';
 import { Dialog, Disclosure, Menu, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  StarIcon,
-} from '@heroicons/react/20/solid';
+import { StarIcon } from '@heroicons/react/20/solid';
 import { Link } from 'react-router-dom';
 import {
   ChevronDownIcon,
   FunnelIcon,
   MinusIcon,
   PlusIcon,
-  Squares2X2Icon,
-  MagnifyingGlassIcon,
-  FireIcon,
 } from '@heroicons/react/20/solid';
 import { ITEMS_PER_PAGE } from '../../../app/constants';
 import Pagination from '../../common/Pagination';
@@ -48,15 +40,15 @@ function HeroBanner({ totalItems }) {
   return (
     <div className="relative w-full">
       {/* Banner Image */}
-      <img
-        src={sustainabilityImage}
-        alt="Shop sustainably"
-        className="w-full h-[40vh] sm:h-[45vh] lg:h-[50vh] object-contain"
-      />
-
+      <div className="w-full h-[40vh] sm:h-[45vh] lg:h-[50vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-100 via-lime-100 to-yellow-100">
+        <img
+          src={sustainabilityImage}
+          alt="Shop sustainably"
+          className="object-contain h-full w-auto"
+        />
+      </div>
       {/* Gradient overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/10" />
-
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-black/0 pointer-events-none" />
       {/* Headline & Count */}
       <div className="absolute inset-0 flex flex-col justify-end pb-10 px-6 sm:px-10 lg:px-20">
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white drop-shadow-md">
@@ -96,7 +88,6 @@ export default function ProductList() {
   const [page, setPage] = useState(1);
 
   const handleFilter = (e, section, option) => {
-    console.log(e.target.checked);
     const newFilter = { ...filter };
     if (e.target.checked) {
       if (newFilter[section.id]) {
@@ -110,18 +101,15 @@ export default function ProductList() {
       );
       newFilter[section.id].splice(index, 1);
     }
-    console.log({ newFilter });
     setFilter(newFilter);
   };
 
   const handleSort = (e, option) => {
     const sort = { _sort: option.sort, _order: option.order };
-    console.log({ sort });
     setSort(sort);
   };
 
   const handlePage = (page) => {
-    console.log({ page });
     setPage(page);
   };
 
@@ -440,40 +428,34 @@ function ProductGrid({ products, status }) {
             <Grid
               height="80"
               width="80"
-              color="rgb(249, 115, 22)"
+              color="rgb(34,197,94)"
               ariaLabel="grid-loading"
               radius="12.5"
-              wrapperStyle={{}}
-              wrapperClass=""
               visible={true}
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {products.map((product, index) => {
               const carbonRating = getCarbonRating();
               return (
-                <Link
-                  to={`/product-detail/${product.id}`}
-                  key={product.id}
-                  className="group"
-                >
-                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-200 overflow-hidden">
-                    {/* Product Image */}
-                    <div className="relative aspect-square w-full overflow-hidden bg-gray-200">
+                <Link to={`/product-detail/${product.id}`} key={product.id} className="group h-full">
+                  <div className="flex flex-col h-full bg-gradient-to-br from-white via-green-50 to-amber-50 border border-emerald-100 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+                    
+                    {/* Fixed aspect ratio image container */}
+                    <div className="relative w-full aspect-[4/5] bg-gradient-to-br from-emerald-50 via-lime-50 to-yellow-50 flex items-center justify-center overflow-hidden">
                       <img
                         src={product.thumbnail}
                         alt={product.title}
-                        className="h-full w-full object-cover object-center group-hover:opacity-75 transition-opacity duration-200"
+                        className="object-contain max-h-full max-w-full transition-transform duration-200 group-hover:scale-105"
+                        loading="lazy"
                       />
-                      
                       {/* Carbon Rating Badge */}
                       <div className="absolute top-2 left-2">
                         <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getCarbonColor(carbonRating)}`}>
                           {carbonRating}
                         </span>
                       </div>
-
                       {/* Discount Badge */}
                       {product.discountPercentage > 0 && (
                         <div className="absolute top-2 right-2">
@@ -485,54 +467,35 @@ function ProductGrid({ products, status }) {
                     </div>
 
                     {/* Product Info */}
-                    <div className="p-4">
-                      {/* Product Title */}
-                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2">
-                        {product.title}
-                      </h3>
-
-                      {/* Rating */}
-                      <div className="flex items-center mb-2">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <StarIcon
-                              key={i}
-                              className={`h-4 w-4 ${
-                                i < Math.floor(product.rating)
-                                  ? 'text-yellow-400'
-                                  : 'text-gray-200'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="ml-1 text-sm text-gray-600">
-                          {product.rating}
-                        </span>
+                    <div className="p-4 flex flex-col flex-1">
+                      <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1">{product.title}</h3>
+                      <div className="flex items-center mb-1">
+                        {[...Array(5)].map((_, i) => (
+                          <StarIcon
+                            key={i}
+                            className={`h-4 w-4 ${
+                              i < Math.floor(product.rating)
+                                ? 'text-yellow-400'
+                                : 'text-gray-200'
+                            }`}
+                          />
+                        ))}
+                        <span className="ml-1 text-xs text-gray-600">{product.rating}</span>
                       </div>
-
-                      {/* Price */}
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className="text-lg font-bold text-gray-900">
-                          ${product.discountPrice}
-                        </span>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-lg font-bold text-emerald-800">${product.discountPrice}</span>
                         {product.price !== product.discountPrice && (
-                          <span className="text-sm text-gray-500 line-through">
-                            ${product.price}
-                          </span>
+                          <span className="text-sm text-gray-500 line-through">${product.price}</span>
                         )}
                       </div>
-
-                      {/* Stock Status */}
                       {product.stock <= 0 ? (
-                        <p className="text-sm text-red-600 font-medium">Out of stock</p>
+                        <p className="text-xs text-red-600 font-medium">Out of stock</p>
                       ) : product.stock <= 5 ? (
-                        <p className="text-sm text-orange-600 font-medium">Only {product.stock} left</p>
+                        <p className="text-xs text-orange-600 font-medium">Only {product.stock} left</p>
                       ) : (
-                        <p className="text-sm text-green-600 font-medium">In stock</p>
+                        <p className="text-xs text-green-600 font-medium">In stock</p>
                       )}
-
-                      {/* Free Delivery */}
-                      <p className="text-xs text-gray-500 mt-1">FREE delivery</p>
+                      <p className="text-xs text-gray-500 mt-auto">FREE delivery</p>
                     </div>
                   </div>
                 </Link>
