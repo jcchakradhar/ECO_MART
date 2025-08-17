@@ -1,10 +1,9 @@
-import { Counter } from './features/counter/Counter';
 import './App.css';
 import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 
-import { createBrowserRouter, Link, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import CartPage from './pages/CartPage';
 import Checkout from './pages/Checkout';
 import ProductDetailPage from './pages/ProductDetailPage';
@@ -34,6 +33,10 @@ import AlertTemplate from 'react-alert-template-basic';
 import StripeCheckout from './pages/StripeCheckout';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 
+// Add these imports for search functionality
+import { SearchProvider } from './contexts/SearchContext';
+import SearchResults from './pages/SearchResults';
+
 const options = {
   timeout: 5000,
   position: positions.BOTTOM_LEFT,
@@ -54,6 +57,15 @@ const router = createBrowserRouter([
       <ProtectedAdmin>
         <AdminHome></AdminHome>
       </ProtectedAdmin>
+    ),
+  },
+  // Add the search results route
+  {
+    path: '/search-results',
+    element: (
+      <Protected>
+        <SearchResults></SearchResults>
+      </Protected>
     ),
   },
   {
@@ -124,7 +136,7 @@ const router = createBrowserRouter([
     path: '/order-success/:id',
     element: (
       <Protected>
-        <OrderSuccessPage></OrderSuccessPage>{' '}
+        <OrderSuccessPage></OrderSuccessPage>
       </Protected>
     ),
   },
@@ -132,7 +144,7 @@ const router = createBrowserRouter([
     path: '/my-orders',
     element: (
       <Protected>
-        <UserOrdersPage></UserOrdersPage>{' '}
+        <UserOrdersPage></UserOrdersPage>
       </Protected>
     ),
   },
@@ -140,7 +152,7 @@ const router = createBrowserRouter([
     path: '/profile',
     element: (
       <Protected>
-        <UserProfilePage></UserProfilePage>{' '}
+        <UserProfilePage></UserProfilePage>
       </Protected>
     ),
   },
@@ -182,7 +194,6 @@ function App() {
   useEffect(() => {
     if (user) {
       dispatch(fetchItemsByUserIdAsync());
-      // we can get req.user by token on backend so no need to give in front-end
       dispatch(fetchLoggedInUserAsync());
     }
   }, [dispatch, user]);
@@ -191,11 +202,12 @@ function App() {
     <>
       <div className="App">
         {userChecked && (
-          <Provider template={AlertTemplate} {...options}>
-            <RouterProvider router={router} />
-          </Provider>
+          <SearchProvider>
+            <Provider template={AlertTemplate} {...options}>
+              <RouterProvider router={router} />
+            </Provider>
+          </SearchProvider>
         )}
-        {/* Link must be inside the Provider */}
       </div>
     </>
   );

@@ -64,6 +64,7 @@ export default function ProductDetail() {
       setSelectedImage(0);
     }
   }, [product]);
+  console.log(params.id);
 
   return (
     <div className="bg-gray-50 min-h-screen">

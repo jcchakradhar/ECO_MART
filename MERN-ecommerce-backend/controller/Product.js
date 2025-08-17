@@ -126,3 +126,58 @@ exports.updateProduct = async (req, res) => {
     res.status(400).json(err);
   }
 };
+// Search products controller
+
+exports.searchProducts = async (req, res) => {
+  try {
+    // Log 1: See exactly what query parameters are coming from the front-end
+    console.log('--- New Search Request ---');
+    console.log('Request Query Params:', req.query);
+
+    const searchTerm = req.query.q || '';
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    if (!searchTerm.trim()) {
+      console.log('Search term is empty. Sending 400 error.');
+      return res.status(400).json({ message: 'Search term is required' });
+    }
+
+    const searchQuery = {
+      $or: [
+        { title: { $regex: searchTerm, $options: 'i' } },
+        { description: { $regex: searchTerm, $options: 'i' } },
+        { brand: { $regex: searchTerm, $options: 'i' } },
+        { category: { $regex: searchTerm, $options: 'i' } },
+        { material: { $regex: searchTerm, $options: 'i' } }
+      ]
+    };
+    
+    // Log 2: Check the MongoDB query object we built
+    console.log('Constructed MongoDB Query:', JSON.stringify(searchQuery, null, 2));
+
+    const totalResults = await Product.countDocuments(searchQuery);
+    
+    // Log 3: See how many documents match the query BEFORE pagination
+    console.log(`Found ${totalResults} matching documents in the database.`);
+
+    const products = await Product.find(searchQuery)
+      .skip(skip)
+      .limit(limit);
+
+    // Log 4: See the final paginated products being sent in the response
+    console.log(`Sending ${products.length} products in the response.`);
+
+    res.status(200).json({
+      products,
+      currentPage: page,
+      totalPages: Math.ceil(totalResults / limit),
+      totalResults
+    });
+
+  } catch (error) {
+    console.error('❌ Search Controller Error:', error);
+    res.status(500).json({ message: 'Search failed', error: error.message });
+  }
+};

@@ -5,10 +5,13 @@ import Footer from "../features/common/Footer";
 function ProductDetailPage() {
     return ( 
         <div>
-            <NavBar>
-                <ProductDetail></ProductDetail>
+            {/* <NavBar/>
+            <ProductDetail/></ProductDetail>
             </NavBar>
-            <Footer></Footer>
+             <Footer/></Footer> */}
+             <NavBar />
+            <ProductDetail />
+            <Footer />
         </div>
      );
 }

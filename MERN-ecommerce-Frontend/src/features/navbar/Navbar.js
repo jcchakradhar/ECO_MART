@@ -4,7 +4,6 @@ import {
   Bars3Icon,
   ShoppingCartIcon,
   XMarkIcon,
-  MagnifyingGlassIcon,
   UserIcon,
 } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
@@ -12,6 +11,7 @@ import { useSelector } from 'react-redux';
 import { selectItems } from '../cart/cartSlice';
 import { selectLoggedInUser } from '../auth/authSlice';
 import { selectUserInfo } from '../user/userSlice';
+import SearchBar from '../auth/components/SearchBar';
 
 const navigation = [
   { name: 'Products', link: '/', user: true },
@@ -83,15 +83,13 @@ function NavBar({ children }) {
                       </div>
                     </div>
 
-                    {/* Search Bar (Desktop) */}
+                    {/* Search Bar (Desktop) - Updated to use SearchBar component */}
                     <div className="hidden md:flex flex-1 max-w-lg mx-8">
                       <div className="relative w-full">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <MagnifyingGlassIcon className="h-5 w-5 text-emerald-300" />
-                        </div>
-                        <input
-                          type="text"
-                          className="block w-full pl-10 pr-3 py-2 border border-transparent rounded-full leading-5 bg-white/10 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:bg-white/20 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-emerald-600 text-sm"
+                        <SearchBar 
+                          isMobile={false}
+                          customClasses="block w-full pl-10 pr-10 py-2 border border-transparent rounded-full leading-5 bg-white/10 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:bg-white/20 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-emerald-600 text-sm"
+                          iconClasses="h-5 w-5 text-emerald-300"
                           placeholder="Search eco-friendly products..."
                         />
                       </div>
@@ -182,18 +180,9 @@ function NavBar({ children }) {
                 {/* Mobile menu */}
                 <Disclosure.Panel className="md:hidden">
                   <div className="bg-emerald-900/50 backdrop-blur-lg border-t border-emerald-700/50">
-                    {/* Mobile Search */}
+                    {/* Mobile Search - Updated to use SearchBar component */}
                     <div className="px-4 py-3">
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <MagnifyingGlassIcon className="h-5 w-5 text-emerald-300" />
-                        </div>
-                        <input
-                          type="text"
-                          className="block w-full pl-10 pr-3 py-2 border border-transparent rounded-full leading-5 bg-white/10 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:bg-white/20 text-sm"
-                          placeholder="Search products..."
-                        />
-                      </div>
+                      <SearchBar isMobile={true} />
                     </div>
 
                     {/* Mobile Navigation */}
