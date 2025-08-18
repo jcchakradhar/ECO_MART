@@ -441,11 +441,11 @@ function ProductGrid({ products, status }) {
               return (
                 <Link to={`/product-detail/${product.id}`} key={product.id} className="group h-full">
                   <div className="flex flex-col h-full bg-gradient-to-br from-white via-green-50 to-amber-50 border border-emerald-100 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 overflow-hidden">
-                    
+
                     {/* Fixed aspect ratio image container */}
                     <div className="relative w-full aspect-[4/5] bg-gradient-to-br from-emerald-50 via-lime-50 to-yellow-50 flex items-center justify-center overflow-hidden">
                       <img
-                        src={product.thumbnail}
+                        src={product.imgUrl || product.thumbnail}
                         alt={product.title}
                         className="object-contain max-h-full max-w-full transition-transform duration-200 group-hover:scale-105"
                         loading="lazy"
@@ -473,11 +473,10 @@ function ProductGrid({ products, status }) {
                         {[...Array(5)].map((_, i) => (
                           <StarIcon
                             key={i}
-                            className={`h-4 w-4 ${
-                              i < Math.floor(product.rating)
+                            className={`h-4 w-4 ${i < Math.floor(product.rating)
                                 ? 'text-yellow-400'
                                 : 'text-gray-200'
-                            }`}
+                              }`}
                           />
                         ))}
                         <span className="ml-1 text-xs text-gray-600">{product.rating}</span>

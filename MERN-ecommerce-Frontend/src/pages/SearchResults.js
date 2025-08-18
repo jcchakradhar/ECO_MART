@@ -106,7 +106,7 @@ const SearchResults = () => {
                   {/* Product Image */}
                   <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden bg-gray-200">
                     <img
-                      src={product.thumbnail || product.images?.[0] || 'https://via.placeholder.com/300x300'}
+                      src={product.thumbnail || product.imgUrl || 'https://via.placeholder.com/300x300'}
                       alt={product.title}
                       className="h-48 w-full object-cover object-center group-hover:opacity-75"
                     />
