@@ -14,6 +14,43 @@ export default function ProductCard({ product }) {
     const discountPercentage = Number(product.discountPercentage) || 0;
     const stock = Number(product.stock);
 
+    // Map rating (A+ → D) to gradient classes
+    const gradeToEcoGradient = (g) => {
+        const grade = String(g || '').toUpperCase().trim();
+        switch (grade) {
+            case 'A+':
+                return 'from-emerald-600 to-green-700';
+            case 'A':
+                return 'from-emerald-500 to-green-600';
+            case 'B':
+                return 'from-lime-500 to-lime-600';
+            case 'C':
+                return 'from-amber-500 to-orange-600';
+            case 'D':
+                return 'from-red-500 to-red-600';
+            default:
+                return 'from-slate-400 to-slate-500';
+        }
+    };
+
+    const gradeToWaterGradient = (g) => {
+        const grade = String(g || '').toUpperCase().trim();
+        switch (grade) {
+            case 'A+':
+                return 'from-blue-700 to-sky-700';
+            case 'A':
+                return 'from-blue-600 to-sky-600';
+            case 'B':
+                return 'from-sky-600 to-blue-600';
+            case 'C':
+                return 'from-sky-500 to-blue-500';
+            case 'D':
+                return 'from-sky-400 to-blue-400';
+            default:
+                return 'from-slate-400 to-slate-500';
+        }
+    };
+
     return (
         <Link to={`/product-detail/${id}`} className="group h-full">
             <div className="flex flex-col h-full bg-gradient-to-br from-white via-green-50 to-amber-50 border border-emerald-100 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 overflow-hidden">
@@ -32,20 +69,43 @@ export default function ProductCard({ product }) {
                             <div className="flex items-center gap-2">
                                 {product.Eco_Rating && (
                                     <div
-                                        className="w-12 h-16 rounded-md bg-gradient-to-b from-emerald-500 to-emerald-600 flex flex-col items-center justify-start pt-1 text-white shadow"
+                                        className={`w-12 h-12 rounded-md bg-gradient-to-b ${gradeToEcoGradient(product.Eco_Rating)} flex flex-col items-center justify-evenly pt-0.5 pb-0.5 px-1 text-white shadow`}
                                         title={`Eco ${product.Eco_Rating}`}
                                     >
-                                        <span className="text-sm leading-none" role="img" aria-label="eco">🍃</span>
-                                        <span className="text-sm font-extrabold leading-none mt-1">{product.Eco_Rating}</span>
+                                        <div className="flex items-center gap-1 leading-none">
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                aria-label="eco"
+                                                role="img"
+                                            >
+                                                <path d="M12 2l4 5h-3l3 4h-3l3 4H8l3-4H8l3-4H8l4-5z" fill="white"></path>
+                                                <rect x="11" y="15" width="2" height="7" fill="white"></rect>
+                                            </svg>
+                                            <span className="text-xs font-extrabold">{product.Eco_Rating}</span>
+                                        </div>
+                                        <span className="text-[10px] font-bold leading-none">Eco</span>
                                     </div>
                                 )}
                                 {product.Water_Rating && (
                                     <div
-                                        className="w-12 h-16 rounded-md bg-gradient-to-b from-sky-500 to-sky-600 flex flex-col items-center justify-start pt-1 text-white shadow"
+                                        className={`w-12 h-12 rounded-md bg-gradient-to-b ${gradeToWaterGradient(product.Water_Rating)} flex flex-col items-center justify-evenly pt-0.5 pb-0.5 px-1 text-white shadow`}
                                         title={`Water ${product.Water_Rating}`}
                                     >
-                                        <span className="text-sm leading-none" role="img" aria-label="water">💧</span>
-                                        <span className="text-sm font-extrabold leading-none mt-1">{product.Water_Rating}</span>
+                                        <div className="flex items-center gap-1 leading-none">
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                aria-label="water"
+                                                role="img"
+                                            >
+                                                <path d="M12 2s7 7.58 7 12a7 7 0 1 1-14 0c0-4.42 7-12 7-12z" fill="white"></path>
+                                            </svg>
+                                            <span className="text-xs font-extrabold">{product.Water_Rating}</span>
+                                        </div>
+                                        <span className="text-[10px] font-bold leading-none">Water</span>
                                     </div>
                                 )}
                             </div>
