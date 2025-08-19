@@ -30,17 +30,94 @@ function Checkout() {
   const status = useSelector(selectStatus);
   const currentOrder = useSelector(selectCurrentOrder);
 
-  const totalAmount = items.reduce(
-    (amount, item) => item.product.discountPrice * item.quantity + amount,
-    0
-  );
+  // Helpers to normalize prices and avoid NaN
+  const parseMoney = (v) => {
+    if (v === undefined || v === null) return null;
+    const num = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.]/g, '')) : Number(v);
+    return Number.isFinite(num) ? num : null;
+  };
+  const getUnitPrice = (product) => {
+    const discount = parseMoney(product?.discountPrice);
+    const price = parseMoney(product?.price);
+    return discount ?? price ?? 0;
+  };
+  const formatMoney = (n) => (Number.isFinite(n) ? n.toFixed(2) : '0.00');
+
+  const totalAmount = items.reduce((amount, item) => {
+    const unit = getUnitPrice(item.product);
+    const qty = Number(item.quantity) || 0;
+    return amount + unit * qty;
+  }, 0);
   const totalItems = items.reduce((total, item) => item.quantity + total, 0);
 
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
+  const [qtyDrafts, setQtyDrafts] = useState({});
 
-  const handleQuantity = (e, item) => {
-    dispatch(updateCartAsync({ id: item.id, quantity: +e.target.value }));
+  // Rating badge gradients (A+ -> D)
+  const gradeToEcoGradient = (g) => {
+    const grade = String(g || '').toUpperCase().trim();
+    switch (grade) {
+      case 'A+':
+        return 'from-emerald-600 to-green-700';
+      case 'A':
+        return 'from-emerald-500 to-green-600';
+      case 'B':
+        return 'from-lime-500 to-lime-600';
+      case 'C':
+        return 'from-amber-500 to-orange-600';
+      case 'D':
+        return 'from-red-500 to-red-600';
+      default:
+        return 'from-slate-400 to-slate-500';
+    }
+  };
+  const gradeToWaterGradient = (g) => {
+    const grade = String(g || '').toUpperCase().trim();
+    switch (grade) {
+      case 'A+':
+        return 'from-blue-700 to-sky-700';
+      case 'A':
+        return 'from-blue-600 to-sky-600';
+      case 'B':
+        return 'from-sky-600 to-blue-600';
+      case 'C':
+        return 'from-sky-500 to-blue-500';
+      case 'D':
+        return 'from-sky-400 to-blue-400';
+      default:
+        return 'from-slate-400 to-slate-500';
+    }
+  };
+
+  // Quantity controls (counter) for cart items on checkout page
+  const commitQuantity = (item, nextQty) => {
+    const qty = Math.max(1, Number.parseInt(nextQty, 10) || 1);
+    setQtyDrafts((prev) => ({ ...prev, [item.id]: qty }));
+    dispatch(updateCartAsync({ id: item.id, quantity: qty }));
+  };
+  const onQtyInputChange = (item, value) => {
+    if (value === '' || /^\d+$/.test(value)) {
+      setQtyDrafts((prev) => ({ ...prev, [item.id]: value }));
+    }
+  };
+  const onQtyInputBlur = (item) => {
+    const draft = qtyDrafts[item.id];
+    commitQuantity(item, draft ?? item.quantity);
+  };
+  const onQtyKeyDown = (e, item) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onQtyInputBlur(item);
+    }
+  };
+  const decQty = (item) => {
+    const current = Number.parseInt(qtyDrafts[item.id] ?? item.quantity, 10) || 1;
+    commitQuantity(item, Math.max(1, current - 1));
+  };
+  const incQty = (item) => {
+    const current = Number.parseInt(qtyDrafts[item.id] ?? item.quantity, 10) || 1;
+    commitQuantity(item, current + 1);
   };
 
   const handleRemove = (e, id) => {
@@ -92,6 +169,17 @@ function Checkout() {
         />
       ) : (
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-4">
+            <Link
+              to="/cart"
+              className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M15.78 18.28a.75.75 0 01-1.06 0l-6-6a.75.75 0 010-1.06l6-6a.75.75 0 111.06 1.06L9.81 12l5.97 5.97a.75.75 0 010 1.06z" clipRule="evenodd" />
+              </svg>
+              Back to Cart
+            </Link>
+          </div>
           <div className="grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-5">
             {/* Address & Payment */}
             <div className="lg:col-span-3">
@@ -274,12 +362,41 @@ function Checkout() {
                 <ul role="list" className="-my-6 divide-y divide-gray-200">
                   {items.map((item) => (
                     <li key={item.id} className="flex py-6">
-                      <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-emerald-200">
+                      <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-emerald-200 relative">
                         <img
-                          src={item.product.thumbnail}
+                          src={(item.product.images && item.product.images[0]) || item.product.imgUrl || item.product.thumbnail || 'https://via.placeholder.com/200'}
                           alt={item.product.title}
                           className="h-full w-full object-cover object-center"
                         />
+                        {(item.product?.Eco_Rating || item.product?.Water_Rating) && (
+                          <div className="absolute top-1 right-1">
+                            <div className="flex flex-col items-end gap-0.5">
+                              {item.product?.Eco_Rating && (
+                                <div
+                                  className={`w-8 h-4 rounded-md bg-gradient-to-r ${gradeToEcoGradient(item.product.Eco_Rating)} flex items-center justify-center px-1 text-white shadow`}
+                                  title={`Eco ${item.product.Eco_Rating}`}
+                                >
+                                  <svg width="8" height="8" viewBox="0 0 24 24" aria-label="eco" role="img" className="mr-0.5">
+                                    <path d="M12 2l4 5h-3l3 4h-3l3 4H8l3-4H8l3-4H8l4-5z" fill="white"></path>
+                                    <rect x="11" y="15" width="2" height="7" fill="white"></rect>
+                                  </svg>
+                                  <span className="text-[8px] font-extrabold leading-none">{item.product.Eco_Rating}</span>
+                                </div>
+                              )}
+                              {item.product?.Water_Rating && (
+                                <div
+                                  className={`w-8 h-4 rounded-md bg-gradient-to-r ${gradeToWaterGradient(item.product.Water_Rating)} flex items-center justify-center px-1 text-white shadow`}
+                                  title={`Water ${item.product.Water_Rating}`}
+                                >
+                                  <svg width="8" height="8" viewBox="0 0 24 24" aria-label="water" role="img" className="mr-0.5">
+                                    <path d="M12 2s7 7.58 7 12a7 7 0 1 1-14 0c0-4.42 7-12 7-12z" fill="white"></path>
+                                  </svg>
+                                  <span className="text-[8px] font-extrabold leading-none">{item.product.Water_Rating}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="ml-4 flex flex-1 flex-col">
                         <div>
@@ -289,7 +406,7 @@ function Checkout() {
                                 {item.product.title}
                               </Link>
                             </h3>
-                            <p className="ml-4">${item.product.discountPrice}</p>
+                            <p className="ml-4">${formatMoney(getUnitPrice(item.product))}</p>
                           </div>
                           <p className="mt-1 text-sm text-gray-500">
                             {item.product.brand}
@@ -297,18 +414,31 @@ function Checkout() {
                         </div>
                         <div className="flex flex-1 items-end justify-between text-sm">
                           <div className="text-gray-500">
-                            <label htmlFor="quantity" className="inline mr-2 text-sm font-medium text-gray-900">
-                              Qty
-                            </label>
-                            <select
-                              onChange={(e) => handleQuantity(e, item)}
-                              value={item.quantity}
-                              className="rounded border border-emerald-200 px-2 py-1"
-                            >
-                              {[1,2,3,4,5].map(qty => (
-                                <option key={qty} value={qty}>{qty}</option>
-                              ))}
-                            </select>
+                            <label htmlFor={`quantity-${item.id}`} className="inline mr-2 text-sm font-medium text-gray-900">Qty</label>
+                            <div className="inline-flex items-center border border-emerald-200 rounded-lg overflow-hidden bg-white/80 align-middle">
+                              <button type="button" onClick={() => decQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">-</button>
+                              <input
+                                id={`quantity-${item.id}`}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={qtyDrafts[item.id] ?? item.quantity}
+                                onChange={(e) => onQtyInputChange(item, e.target.value)}
+                                onBlur={() => onQtyInputBlur(item)}
+                                onKeyDown={(e) => onQtyKeyDown(e, item)}
+                                className="w-12 text-center px-1 py-1 text-sm focus:outline-none"
+                              />
+                              <button type="button" onClick={() => incQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">+</button>
+                            </div>
+                            <div className="mt-2 text-gray-600">
+                              {(() => {
+                                const unit = getUnitPrice(item.product);
+                                const qty = Number(item.quantity) || 0;
+                                const sub = unit * qty;
+                                return (
+                                  <>Subtotal: <span className="font-semibold">${formatMoney(sub)}</span></>
+                                );
+                              })()}
+                            </div>
                           </div>
                           <button
                             onClick={(e) => handleRemove(e, item.id)}
@@ -325,7 +455,7 @@ function Checkout() {
                 <div className="border-t border-gray-200 mt-6 pt-6">
                   <div className="flex justify-between text-base font-medium text-gray-900">
                     <p>Subtotal</p>
-                    <p>${totalAmount}</p>
+                    <p>${formatMoney(totalAmount)}</p>
                   </div>
                   <div className="flex justify-between text-base font-medium text-gray-900 mt-2">
                     <p>Total Items</p>

@@ -26,6 +26,7 @@ export default function Cart() {
   const status = useSelector(selectCartStatus);
   const cartLoaded = useSelector(selectCartLoaded);
   const [openModal, setOpenModal] = useState(null);
+  const [qtyDrafts, setQtyDrafts] = useState({});
 
   // Helpers to normalize prices and formatting
   const parseMoney = (v) => {
@@ -61,6 +62,35 @@ export default function Cart() {
 
   const handleQuantity = (e, item) => {
     dispatch(updateCartAsync({ id: item.id, quantity: +e.target.value }));
+  };
+  const commitQuantity = (item, nextQty) => {
+    const qty = Math.max(1, Number.parseInt(nextQty, 10) || 1);
+    setQtyDrafts((prev) => ({ ...prev, [item.id]: qty }));
+    dispatch(updateCartAsync({ id: item.id, quantity: qty }));
+  };
+  const onQtyInputChange = (item, value) => {
+    // Allow empty during typing; only digits otherwise
+    if (value === '' || /^\d+$/.test(value)) {
+      setQtyDrafts((prev) => ({ ...prev, [item.id]: value }));
+    }
+  };
+  const onQtyInputBlur = (item) => {
+    const draft = qtyDrafts[item.id];
+    commitQuantity(item, draft ?? item.quantity);
+  };
+  const onQtyKeyDown = (e, item) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onQtyInputBlur(item);
+    }
+  };
+  const decQty = (item) => {
+    const current = Number.parseInt(qtyDrafts[item.id] ?? item.quantity, 10) || 1;
+    commitQuantity(item, Math.max(1, current - 1));
+  };
+  const incQty = (item) => {
+    const current = Number.parseInt(qtyDrafts[item.id] ?? item.quantity, 10) || 1;
+    commitQuantity(item, current + 1);
   };
 
   const handleRemove = (e, id) => {
@@ -249,19 +279,21 @@ export default function Cart() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-4">
                                   <div className="flex items-center space-x-2">
-                                    <label htmlFor={`quantity-${item.id}`} className="text-sm font-medium text-emerald-800">
-                                      Qty:
-                                    </label>
-                                    <select
-                                      id={`quantity-${item.id}`}
-                                      onChange={(e) => handleQuantity(e, item)}
-                                      value={item.quantity}
-                                      className="rounded-lg border border-emerald-200 bg-white/70 pl-3 pr-8 py-1 text-sm min-w-[64px] focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                    >
-                                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                                        <option key={num} value={num}>{num}</option>
-                                      ))}
-                                    </select>
+                                    <label htmlFor={`quantity-${item.id}`} className="text-sm font-medium text-emerald-800">Qty:</label>
+                                    <div className="flex items-center border border-emerald-200 rounded-lg overflow-hidden bg-white/70">
+                                      <button type="button" onClick={() => decQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">-</button>
+                                      <input
+                                        id={`quantity-${item.id}`}
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={qtyDrafts[item.id] ?? item.quantity}
+                                        onChange={(e) => onQtyInputChange(item, e.target.value)}
+                                        onBlur={() => onQtyInputBlur(item)}
+                                        onKeyDown={(e) => onQtyKeyDown(e, item)}
+                                        className="w-12 text-center px-1 py-1 text-sm focus:outline-none"
+                                      />
+                                      <button type="button" onClick={() => incQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">+</button>
+                                    </div>
                                   </div>
                                   <div className="text-sm text-emerald-700">
                                     {(() => {
