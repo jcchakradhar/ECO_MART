@@ -11,8 +11,8 @@ import { Link } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
 import { Grid } from 'react-loader-spinner';
 import Modal from '../common/Modal';
-import { 
-  TrashIcon, 
+import {
+  TrashIcon,
   ShoppingBagIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -27,42 +27,79 @@ export default function Cart() {
   const cartLoaded = useSelector(selectCartLoaded);
   const [openModal, setOpenModal] = useState(null);
 
-  const totalAmount = items.reduce(
-    (amount, item) => item.product.discountPrice * item.quantity + amount,
-    0
-  );
+  // Helpers to normalize prices and formatting
+  const parseMoney = (v) => {
+    if (v === undefined || v === null) return null;
+    const num = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.]/g, '')) : Number(v);
+    return Number.isFinite(num) ? num : null;
+  };
+  const getUnitPrice = (product) => {
+    const discount = parseMoney(product?.discountPrice);
+    const price = parseMoney(product?.price);
+    return (discount ?? price ?? 0);
+  };
+  const getOriginalPrice = (product) => {
+    const price = parseMoney(product?.price);
+    return price ?? getUnitPrice(product);
+  };
+  const formatMoney = (n) => (Number.isFinite(n) ? n.toFixed(2) : '0.00');
+
+  const totalAmount = items.reduce((amount, item) => {
+    const unit = getUnitPrice(item.product);
+    const qty = Number(item.quantity) || 0;
+    return amount + unit * qty;
+  }, 0);
   const totalItems = items.reduce((total, item) => item.quantity + total, 0);
 
   // Calculate savings
-  const totalOriginalPrice = items.reduce(
-    (amount, item) => item.product.price * item.quantity + amount,
-    0
-  );
+  const totalOriginalPrice = items.reduce((amount, item) => {
+    const orig = getOriginalPrice(item.product);
+    const qty = Number(item.quantity) || 0;
+    return amount + orig * qty;
+  }, 0);
   const totalSavings = totalOriginalPrice - totalAmount;
 
   const handleQuantity = (e, item) => {
-    dispatch(updateCartAsync({id: item.id, quantity: +e.target.value}));
+    dispatch(updateCartAsync({ id: item.id, quantity: +e.target.value }));
   };
 
   const handleRemove = (e, id) => {
     dispatch(deleteItemFromCartAsync(id));
   };
 
-  // Generate random carbon rating for demo
-  const getCarbonRating = () => {
-    const ratings = ['A+', 'A', 'B+', 'B', 'C+', 'C'];
-    return ratings[Math.floor(Math.random() * ratings.length)];
+  // Rating badge gradients (A+ -> D)
+  const gradeToEcoGradient = (g) => {
+    const grade = String(g || '').toUpperCase().trim();
+    switch (grade) {
+      case 'A+':
+        return 'from-emerald-600 to-green-700';
+      case 'A':
+        return 'from-emerald-500 to-green-600';
+      case 'B':
+        return 'from-lime-500 to-lime-600';
+      case 'C':
+        return 'from-amber-500 to-orange-600';
+      case 'D':
+        return 'from-red-500 to-red-600';
+      default:
+        return 'from-slate-400 to-slate-500';
+    }
   };
-
-  const getCarbonColor = (rating) => {
-    switch (rating) {
-      case 'A+': return 'bg-green-500 text-white';
-      case 'A': return 'bg-green-400 text-white';
-      case 'B+': return 'bg-yellow-400 text-gray-900';
-      case 'B': return 'bg-yellow-500 text-gray-900';
-      case 'C+': return 'bg-orange-400 text-white';
-      case 'C': return 'bg-red-400 text-white';
-      default: return 'bg-gray-400 text-white';
+  const gradeToWaterGradient = (g) => {
+    const grade = String(g || '').toUpperCase().trim();
+    switch (grade) {
+      case 'A+':
+        return 'from-blue-700 to-sky-700';
+      case 'A':
+        return 'from-blue-600 to-sky-600';
+      case 'B':
+        return 'from-sky-600 to-blue-600';
+      case 'C':
+        return 'from-sky-500 to-blue-500';
+      case 'D':
+        return 'from-sky-400 to-blue-400';
+      default:
+        return 'from-slate-400 to-slate-500';
     }
   };
 
@@ -123,7 +160,6 @@ export default function Cart() {
                 ) : (
                   <div className="space-y-6">
                     {items.map((item) => {
-                      const carbonRating = getCarbonRating();
                       return (
                         <div key={item.id} className="bg-white/70 backdrop-blur-sm rounded-xl p-6 border border-emerald-100 hover:shadow-lg transition-all duration-200">
                           <div className="flex items-start space-x-4">
@@ -131,17 +167,46 @@ export default function Cart() {
                             <div className="relative flex-shrink-0">
                               <div className="h-32 w-32 overflow-hidden rounded-xl border-2 border-emerald-200">
                                 <img
-                                  src={item.product.thumbnail}
+                                  src={
+                                    (item.product.images && item.product.images[0]) ||
+                                    item.product.imgUrl ||
+                                    item.product.thumbnail ||
+                                    'https://via.placeholder.com/300'
+                                  }
                                   alt={item.product.title}
                                   className="h-full w-full object-cover object-center hover:scale-105 transition-transform duration-200"
                                 />
                               </div>
-                              {/* Carbon Rating Badge */}
-                              <div className="absolute -top-2 -right-2">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-bold shadow-lg ${getCarbonColor(carbonRating)}`}>
-                                  🌍 {carbonRating}
-                                </span>
-                              </div>
+                              {/* Eco & Water Rating Badges */}
+                              {(item.product?.Eco_Rating || item.product?.Water_Rating) && (
+                                <div className="absolute top-1 right-1">
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    {item.product?.Eco_Rating && (
+                                      <div
+                                        className={`w-8 h-4 rounded-md bg-gradient-to-r ${gradeToEcoGradient(item.product.Eco_Rating)} flex items-center justify-center px-1 text-white shadow`}
+                                        title={`Eco ${item.product.Eco_Rating}`}
+                                      >
+                                        <svg width="8" height="8" viewBox="0 0 24 24" aria-label="eco" role="img" className="mr-0.5">
+                                          <path d="M12 2l4 5h-3l3 4h-3l3 4H8l3-4H8l3-4H8l4-5z" fill="white"></path>
+                                          <rect x="11" y="15" width="2" height="7" fill="white"></rect>
+                                        </svg>
+                                        <span className="text-[8px] font-extrabold leading-none">{item.product.Eco_Rating}</span>
+                                      </div>
+                                    )}
+                                    {item.product?.Water_Rating && (
+                                      <div
+                                        className={`w-8 h-4 rounded-md bg-gradient-to-r ${gradeToWaterGradient(item.product.Water_Rating)} flex items-center justify-center px-1 text-white shadow`}
+                                        title={`Water ${item.product.Water_Rating}`}
+                                      >
+                                        <svg width="8" height="8" viewBox="0 0 24 24" aria-label="water" role="img" className="mr-0.5">
+                                          <path d="M12 2s7 7.58 7 12a7 7 0 1 1-14 0c0-4.42 7-12 7-12z" fill="white"></path>
+                                        </svg>
+                                        <span className="text-[8px] font-extrabold leading-none">{item.product.Water_Rating}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             {/* Product Details */}
@@ -158,14 +223,23 @@ export default function Cart() {
                                   </p>
                                   <div className="flex items-center space-x-4 mb-4">
                                     <div className="flex items-center space-x-2">
-                                      <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                                        ${item.product.discountPrice}
-                                      </span>
-                                      {item.product.price !== item.product.discountPrice && (
-                                        <span className="text-sm text-gray-400 line-through">
-                                          ${item.product.price}
-                                        </span>
-                                      )}
+                                      {(() => {
+                                        const unit = getUnitPrice(item.product);
+                                        const orig = getOriginalPrice(item.product);
+                                        const showStrike = Number.isFinite(orig) && Number.isFinite(unit) && orig > unit;
+                                        return (
+                                          <>
+                                            <span className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                              ${formatMoney(unit)}
+                                            </span>
+                                            {showStrike && (
+                                              <span className="text-sm text-gray-400 line-through">
+                                                ${formatMoney(orig)}
+                                              </span>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
                                     </div>
                                   </div>
                                 </div>
@@ -182,7 +256,7 @@ export default function Cart() {
                                       id={`quantity-${item.id}`}
                                       onChange={(e) => handleQuantity(e, item)}
                                       value={item.quantity}
-                                      className="rounded-lg border border-emerald-200 bg-white/70 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                      className="rounded-lg border border-emerald-200 bg-white/70 pl-3 pr-8 py-1 text-sm min-w-[64px] focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                     >
                                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                                         <option key={num} value={num}>{num}</option>
@@ -190,7 +264,14 @@ export default function Cart() {
                                     </select>
                                   </div>
                                   <div className="text-sm text-emerald-700">
-                                    Subtotal: <span className="font-semibold">${(item.product.discountPrice * item.quantity).toFixed(2)}</span>
+                                    {(() => {
+                                      const unit = getUnitPrice(item.product);
+                                      const qty = Number(item.quantity) || 0;
+                                      const sub = unit * qty;
+                                      return (
+                                        <>Subtotal: <span className="font-semibold">${formatMoney(sub)}</span></>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
 
@@ -227,25 +308,25 @@ export default function Cart() {
             <div className="lg:col-span-5 mt-8 lg:mt-0">
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-emerald-200/30 p-6 sticky top-6">
                 <h2 className="text-xl font-bold text-emerald-900 mb-6">Order Summary</h2>
-                
+
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-700">Subtotal ({totalItems} items)</span>
                     <span className="font-medium text-emerald-900">${totalAmount.toFixed(2)}</span>
                   </div>
-                  
+
                   {totalSavings > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-emerald-700">You Save</span>
                       <span className="font-medium text-green-600">-${totalSavings.toFixed(2)}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-700">Shipping</span>
                     <span className="font-medium text-green-600">Free</span>
                   </div>
-                  
+
                   <div className="border-t border-emerald-200 pt-4">
                     <div className="flex justify-between">
                       <span className="text-lg font-semibold text-emerald-900">Total</span>
