@@ -29,7 +29,7 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function NavBar({ children }) {
+function NavBar({ children, showHeader = true }) {
   const items = useSelector(selectItems);
   const userInfo = useSelector(selectUserInfo);
 
@@ -86,7 +86,7 @@ function NavBar({ children }) {
                     {/* Search Bar (Desktop) - Updated to use SearchBar component */}
                     <div className="hidden md:flex flex-1 max-w-lg mx-8">
                       <div className="relative w-full">
-                        <SearchBar 
+                        <SearchBar
                           isMobile={false}
                           customClasses="block w-full pl-10 pr-10 py-2 border border-transparent rounded-full leading-5 bg-white/10 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:bg-white/20 focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-emerald-600 text-sm"
                           iconClasses="h-5 w-5 text-emerald-300"
@@ -262,17 +262,19 @@ function NavBar({ children }) {
             )}
           </Disclosure>
 
-          {/* Enhanced Header */}
-          <header className="bg-gradient-to-r from-emerald-50 to-teal-50 shadow-lg border-b border-emerald-200/30">
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-800 to-teal-600 bg-clip-text text-transparent">
-                Sustainable E-Commerce
-              </h1>
-              <p className="mt-1 text-sm text-emerald-700">
-                🌱 Shop responsibly, live sustainably
-              </p>
-            </div>
-          </header>
+          {/* Enhanced Header (conditionally shown) */}
+          {showHeader && (
+            <header className="bg-gradient-to-r from-emerald-50 to-teal-50 shadow-lg border-b border-emerald-200/30">
+              <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-800 to-teal-600 bg-clip-text text-transparent">
+                  Sustainable E-Commerce
+                </h1>
+                <p className="mt-1 text-sm text-emerald-700">
+                  🌱 Shop responsibly, live sustainably
+                </p>
+              </div>
+            </header>
+          )}
 
           <main className="bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 min-h-screen">
             <div className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
