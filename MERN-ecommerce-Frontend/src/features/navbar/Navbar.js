@@ -7,10 +7,11 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { selectItems } from '../cart/cartSlice';
 import { selectLoggedInUser } from '../auth/authSlice';
-import { selectUserInfo } from '../user/userSlice';
+import { selectUserInfo, fetchLoggedInUserAsync } from '../user/userSlice';
+import { useEffect } from 'react';
 import SearchBar from '../auth/components/SearchBar';
 
 const navigation = [
@@ -30,8 +31,14 @@ function classNames(...classes) {
 }
 
 function NavBar({ children, showHeader = true }) {
+  const dispatch = useDispatch();
   const items = useSelector(selectItems);
   const userInfo = useSelector(selectUserInfo);
+
+  // Fetch fresh user info on mount so name/email are available app-wide
+  useEffect(() => {
+    dispatch(fetchLoggedInUserAsync());
+  }, [dispatch]);
 
   return (
     <>

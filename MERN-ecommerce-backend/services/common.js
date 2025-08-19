@@ -17,7 +17,7 @@ exports.isAuth = (req, res, done) => {
 };
 
 exports.sanitizeUser = (user) => {
-  return { id: user.id, role: user.role };
+  return { id: user.id, role: user.role, name: user.name, email: user.email };
 };
 
 exports.cookieExtractor = function (req) {
@@ -29,20 +29,20 @@ exports.cookieExtractor = function (req) {
 };
 
 
-exports.sendMail = async function ({to, subject, text, html}){
-    let info = await transporter.sendMail({
-        from: '"E-commerce" <coderdost@gmail.com>', // sender address
-        to,
-        subject,
-        text,
-        html
-      });
-    return info;  
+exports.sendMail = async function ({ to, subject, text, html }) {
+  let info = await transporter.sendMail({
+    from: '"E-commerce" <coderdost@gmail.com>', // sender address
+    to,
+    subject,
+    text,
+    html
+  });
+  return info;
 }
 
-exports.invoiceTemplate = function(order){
+exports.invoiceTemplate = function (order) {
 
- return (`<!DOCTYPE html>
+  return (`<!DOCTYPE html>
 <html>
 <head>
 
@@ -234,13 +234,13 @@ exports.invoiceTemplate = function(order){
                   <td align="left" bgcolor="#D2C7BA" width="20%" style="padding: 12px;font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px;"><strong></strong></td>
                   <td align="left" bgcolor="#D2C7BA" width="20%" style="padding: 12px;font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px;"><strong>${order.id}</strong></td>
                 </tr>
-                ${order.items.map(item=>`<tr>
+                ${order.items.map(item => `<tr>
                   <td align="left" width="60%" style="padding: 6px 12px;font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px;">${item.product.title}</td>
                   <td align="left" width="20%" style="padding: 6px 12px;font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px;">${item.quantity}</td>
-                  <td align="left" width="20%" style="padding: 6px 12px;font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px;">$${Math.round(item.product.price*(1-item.product.discountPercentage/100),2)}</td>
+                  <td align="left" width="20%" style="padding: 6px 12px;font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif; font-size: 16px; line-height: 24px;">$${Math.round(item.product.price * (1 - item.product.discountPercentage / 100), 2)}</td>
                 </tr>`)
 
-                }
+    }
                
                
                 <tr>
@@ -355,7 +355,7 @@ exports.invoiceTemplate = function(order){
 
 </body>
 </html>`
- )
+  )
 
 
 }
