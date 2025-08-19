@@ -7,17 +7,17 @@ import {
   selectProductById,
   selectProductListStatus,
 } from '../productSlice';
-import { useParams } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { addToCartAsync, selectItems } from '../../cart/cartSlice';
 import { selectLoggedInUser } from '../../auth/authSlice';
 import { useAlert } from 'react-alert';
 import { Grid } from 'react-loader-spinner';
-import { 
-  HeartIcon, 
-  ShareIcon, 
+import {
+  HeartIcon,
+  ShareIcon,
   TruckIcon,
   ShieldCheckIcon,
-  ArrowPathIcon 
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 function classNames(...classes) {
@@ -33,7 +33,41 @@ export default function ProductDetail() {
   const dispatch = useDispatch();
   const params = useParams();
   const alert = useAlert();
+  const location = useLocation();
   const status = useSelector(selectProductListStatus);
+
+  // Build breadcrumbs dynamically if not provided from API
+  const fromSearch = location.state?.from === 'search';
+  const fromHome = location.state?.from === 'home';
+  const searchQuery = location.state?.q;
+  const searchPage = location.state?.page || 1;
+  const homePage = location.state?.page || 1;
+
+  const truncate = (str, n = 30) => {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n - 1) + '…' : str;
+  };
+
+  const computedBreadcrumbs = product && (!product.breadcrumbs || product.breadcrumbs.length === 0)
+    ? (
+      fromSearch
+        ? [
+          { id: 'search', name: truncate(searchQuery) || 'Search', href: `/search-results?q=${encodeURIComponent(searchQuery || '')}&page=${encodeURIComponent(searchPage)}` },
+          { id: 'item', name: product?.title }
+        ]
+        : fromHome
+          ? [
+            { id: 'home', name: 'Home', href: `/?page=${encodeURIComponent(homePage)}` },
+            { id: 'item', name: product?.title }
+          ]
+          : [
+            { id: 'home', name: 'Home', href: '/' },
+            ...(product.category ? [{ id: 'category', name: product.category, href: `/search-results?q=${encodeURIComponent(product.category)}` }] : []),
+            ...(product.brand ? [{ id: 'brand', name: product.brand, href: `/search-results?q=${encodeURIComponent(product.brand)}` }] : []),
+            { id: 'item', name: product?.title }
+          ]
+    )
+    : product?.breadcrumbs;
 
   const handleCart = (e) => {
     e.preventDefault();
@@ -49,7 +83,7 @@ export default function ProductDetail() {
       if (selectedSize) {
         newItem.size = selectedSize;
       }
-      dispatch(addToCartAsync({item:newItem, alert}));
+      dispatch(addToCartAsync({ item: newItem, alert }));
     } else {
       alert.error('Item Already added');
     }
@@ -82,22 +116,28 @@ export default function ProductDetail() {
           />
         </div>
       ) : null}
-      
+
       {product && (
         <div className="bg-white">
           {/* Breadcrumb Navigation */}
           <nav aria-label="Breadcrumb" className="bg-gray-50 border-b border-gray-200">
             <ol className="mx-auto flex max-w-7xl items-center space-x-2 px-4 py-4 sm:px-6 lg:px-8">
-              {product.breadcrumbs &&
-                product.breadcrumbs.map((breadcrumb) => (
-                  <li key={breadcrumb.id}>
-                    <div className="flex items-center">
-                      <a
-                        href={breadcrumb.href}
+              {(computedBreadcrumbs || []).map((breadcrumb, idx) => (
+                <li key={breadcrumb.id || `${breadcrumb.name}-${idx}`}>
+                  <div className="flex items-center">
+                    {breadcrumb.href ? (
+                      <Link
+                        to={breadcrumb.href}
                         className="mr-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
                       >
                         {breadcrumb.name}
-                      </a>
+                      </Link>
+                    ) : (
+                      <span className="mr-2 text-sm font-medium text-gray-700">
+                        {breadcrumb.name}
+                      </span>
+                    )}
+                    {idx < (computedBreadcrumbs?.length || 0) - 1 && (
                       <svg
                         width={16}
                         height={20}
@@ -108,19 +148,18 @@ export default function ProductDetail() {
                       >
                         <path d="M5.697 4.34L8.98 16.532h1.327L7.025 4.341H5.697z" />
                       </svg>
-                    </div>
-                  </li>
-                ))}
-              <li className="text-sm">
-                <span className="font-medium text-gray-700">{product.title}</span>
-              </li>
+                    )}
+                  </div>
+                </li>
+              ))}
+              {/* Last crumb is the current item; main title remains below */}
             </ol>
           </nav>
 
           {/* Main Product Content */}
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
             <div className="lg:grid lg:grid-cols-2 lg:gap-x-12 lg:items-start">
-              
+
               {/* Image Gallery */}
               <div className="flex flex-col-reverse">
                 {/* Image Thumbnails */}
@@ -130,9 +169,8 @@ export default function ProductDetail() {
                       <button
                         key={index}
                         onClick={() => setSelectedImage(index)}
-                        className={`relative flex h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
-                          selectedImage === index ? 'ring-2 ring-blue-500' : ''
-                        }`}
+                        className={`relative flex h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${selectedImage === index ? 'ring-2 ring-blue-500' : ''
+                          }`}
                       >
                         <span className="sr-only">Image {index + 1}</span>
                         <span className="absolute inset-0 overflow-hidden rounded-md">
@@ -146,8 +184,13 @@ export default function ProductDetail() {
                 {/* Main Image */}
                 <div className="aspect-h-1 aspect-w-1 w-full">
                   <img
-                    src={product.images?.[selectedImage] || product.thumbnail}
-                    alt={product.title}
+                    src={
+                      product.images?.[selectedImage] ||
+                      product.imgUrl ||
+                      product.thumbnail ||
+                      'https://via.placeholder.com/800'
+                    }
+                    alt={product.title || 'Product image'}
                     className="h-full w-full object-cover object-center sm:rounded-lg border border-gray-200"
                   />
                 </div>
@@ -217,11 +260,10 @@ export default function ProductDetail() {
                 {/* Stock Status */}
                 <div className="mt-6">
                   <div className="flex items-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      product.stock > 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${product.stock > 0
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                      }`}>
                       {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
                     </span>
                   </div>
@@ -361,11 +403,10 @@ export default function ProductDetail() {
                       onClick={handleCart}
                       type="submit"
                       disabled={product.stock === 0}
-                      className={`flex w-full items-center justify-center rounded-md border border-transparent px-8 py-3 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-                        product.stock > 0
-                          ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
-                          : 'bg-gray-400 cursor-not-allowed'
-                      }`}
+                      className={`flex w-full items-center justify-center rounded-md border border-transparent px-8 py-3 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${product.stock > 0
+                        ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+                        : 'bg-gray-400 cursor-not-allowed'
+                        }`}
                     >
                       {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
                     </button>

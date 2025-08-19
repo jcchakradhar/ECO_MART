@@ -17,24 +17,26 @@ const SearchResults = () => {
   } = useSearch();
 
   // 2. Get the search params from the URL
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q');
-  const [page, setPage] = useState(1);
+  const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const [page, setPage] = useState(pageParam);
 
   // 3. Use useEffect to trigger a search whenever the query in the URL changes
   useEffect(() => {
-    if (query) {
-      // On new query, reset and fetch page 1
-      setPage(1);
-      searchProducts(query, 1);
-    }
-  }, [query]);
+    if (!query) return;
+    const p = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+    setPage(p);
+    searchProducts(query, p);
+  }, [query, pageParam]);
 
   const handlePageChange = (nextPage) => {
     if (!query) return;
     const next = Math.max(1, Math.min(nextPage, pagination.totalPages || 1));
     setPage(next);
     searchProducts(query, next);
+    // Reflect current page in URL for deep-link/back navigation
+    setSearchParams({ q: query, page: String(next) });
   };
 
   if (isLoading) {
@@ -98,7 +100,11 @@ const SearchResults = () => {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
               {searchResults.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  linkState={{ from: 'search', q: query, page }}
+                />
               ))}
             </div>
 

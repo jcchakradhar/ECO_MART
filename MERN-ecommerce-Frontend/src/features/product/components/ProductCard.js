@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { StarIcon } from '@heroicons/react/20/solid';
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, linkState }) {
     if (!product) return null;
 
     const id = product.id;
@@ -52,7 +52,7 @@ export default function ProductCard({ product }) {
     };
 
     return (
-        <Link to={`/product-detail/${id}`} className="group h-full">
+        <Link to={`/product-detail/${id}`} state={linkState} className="group h-full">
             <div className="flex flex-col h-full bg-gradient-to-br from-white via-green-50 to-amber-50 border border-emerald-100 rounded-lg shadow hover:shadow-lg transition-shadow duration-200 overflow-hidden">
                 {/* Image */}
                 <div className="relative w-full aspect-[4/5] bg-white flex items-center justify-center overflow-hidden">

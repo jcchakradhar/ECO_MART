@@ -8,7 +8,7 @@ import {
 } from '../productSlice';
 import { Menu, Transition } from '@headlessui/react';
 import { StarIcon } from '@heroicons/react/20/solid';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { ITEMS_PER_PAGE } from '../../../app/constants';
 import Pagination from '../../common/Pagination';
@@ -60,7 +60,9 @@ export default function ProductList() {
   const status = useSelector(selectProductListStatus);
   // Filters removed: we no longer use categories/brands in the UI
   const [sort, setSort] = useState({});
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const [page, setPage] = useState(pageParam);
 
 
   const handleSort = (e, option) => {
@@ -68,8 +70,9 @@ export default function ProductList() {
     setSort(sort);
   };
 
-  const handlePage = (page) => {
-    setPage(page);
+  const handlePage = (pageNum) => {
+    setPage(pageNum);
+    setSearchParams({ page: String(pageNum) });
   };
 
   useEffect(() => {
@@ -79,7 +82,8 @@ export default function ProductList() {
   }, [dispatch, sort, page]);
 
   useEffect(() => {
-    setPage(1);
+    // If sort changes, keep current page in URL; optionally reset if needed.
+    // setPage(1);
   }, [totalItems, sort]);
 
   // Removed fetching brands/categories since not used in UI
@@ -159,7 +163,7 @@ export default function ProductList() {
 
             {/* Product grid only (no sidebar filters) */}
             <div className="">
-              <ProductGrid products={products} status={status} />
+              <ProductGrid products={products} status={status} page={page} />
             </div>
           </section>
 
@@ -179,7 +183,7 @@ export default function ProductList() {
 }
 
 
-function ProductGrid({ products, status }) {
+function ProductGrid({ products, status, page }) {
   // Function to generate random carbon rating for demo purposes
   const getCarbonRating = () => {
     const ratings = ['A+', 'A', 'B+', 'B', 'C+', 'C'];
@@ -215,7 +219,7 @@ function ProductGrid({ products, status }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} linkState={{ from: 'home', page }} />
             ))}
           </div>
         )}
