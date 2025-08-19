@@ -74,8 +74,8 @@ export default function Login() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <EnvelopeIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="email"
@@ -108,8 +108,8 @@ export default function Login() {
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <LockClosedIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="password"
@@ -122,7 +122,7 @@ export default function Login() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (

@@ -111,8 +111,8 @@ export default function Signup() {
                   Your Name
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <UserIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <UserIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="name"
@@ -142,8 +142,8 @@ export default function Signup() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <EnvelopeIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="email"
@@ -176,8 +176,8 @@ export default function Signup() {
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <LockClosedIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="password"
@@ -194,7 +194,7 @@ export default function Signup() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -217,8 +217,8 @@ export default function Signup() {
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.strength < 2 ? 'bg-red-500' :
-                            passwordStrength.strength < 4 ? 'bg-yellow-500' :
-                              'bg-emerald-500'
+                          passwordStrength.strength < 4 ? 'bg-yellow-500' :
+                            'bg-emerald-500'
                           }`}
                         style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
                       ></div>
@@ -278,8 +278,8 @@ export default function Signup() {
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <LockClosedIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="confirmPassword"
@@ -294,7 +294,7 @@ export default function Signup() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (

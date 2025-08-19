@@ -45,7 +45,7 @@ const SearchBar = ({
 
   return (
     <form onSubmit={handleSearch} className="relative w-full">
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
         <MagnifyingGlassIcon className={`h-5 w-5 ${searchIconClasses}`} />
       </div>
 
@@ -61,7 +61,7 @@ const SearchBar = ({
         <button
           type="button"
           onClick={handleClear}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
         >
           <XMarkIcon className={`h-5 w-5 ${clearIconClasses} hover:text-gray-600`} />
         </button>
