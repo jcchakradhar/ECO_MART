@@ -19,6 +19,7 @@ import {
   TruckIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
+import RatingBadge from '../common/RatingBadge';
 
 export default function Cart() {
   const dispatch = useDispatch();
@@ -207,34 +208,15 @@ export default function Cart() {
                                   className="h-full w-full object-cover object-center hover:scale-105 transition-transform duration-200"
                                 />
                               </div>
-                              {/* Eco & Water Rating Badges */}
+                              {/* Eco & Water Rating Badges (new design) */}
                               {(item.product?.Eco_Rating || item.product?.Water_Rating) && (
-                                <div className="absolute top-1 right-1">
-                                  <div className="flex flex-col items-end gap-0.5">
-                                    {item.product?.Eco_Rating && (
-                                      <div
-                                        className={`w-8 h-4 rounded-md bg-gradient-to-r ${gradeToEcoGradient(item.product.Eco_Rating)} flex items-center justify-center px-1 text-white shadow`}
-                                        title={`Eco ${item.product.Eco_Rating}`}
-                                      >
-                                        <svg width="8" height="8" viewBox="0 0 24 24" aria-label="eco" role="img" className="mr-0.5">
-                                          <path d="M12 2l4 5h-3l3 4h-3l3 4H8l3-4H8l3-4H8l4-5z" fill="white"></path>
-                                          <rect x="11" y="15" width="2" height="7" fill="white"></rect>
-                                        </svg>
-                                        <span className="text-[8px] font-extrabold leading-none">{item.product.Eco_Rating}</span>
-                                      </div>
-                                    )}
-                                    {item.product?.Water_Rating && (
-                                      <div
-                                        className={`w-8 h-4 rounded-md bg-gradient-to-r ${gradeToWaterGradient(item.product.Water_Rating)} flex items-center justify-center px-1 text-white shadow`}
-                                        title={`Water ${item.product.Water_Rating}`}
-                                      >
-                                        <svg width="8" height="8" viewBox="0 0 24 24" aria-label="water" role="img" className="mr-0.5">
-                                          <path d="M12 2s7 7.58 7 12a7 7 0 1 1-14 0c0-4.42 7-12 7-12z" fill="white"></path>
-                                        </svg>
-                                        <span className="text-[8px] font-extrabold leading-none">{item.product.Water_Rating}</span>
-                                      </div>
-                                    )}
-                                  </div>
+                                <div className="absolute top-1 right-1 flex flex-col items-end gap-0.5">
+                                  {item.product?.Eco_Rating && (
+                                    <RatingBadge compact kind="eco" grade={item.product.Eco_Rating} size="sm" />
+                                  )}
+                                  {item.product?.Water_Rating && (
+                                    <RatingBadge compact kind="water" grade={item.product.Water_Rating} size="sm" />
+                                  )}
                                 </div>
                               )}
                             </div>

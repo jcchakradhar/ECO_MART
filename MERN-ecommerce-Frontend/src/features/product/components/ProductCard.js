@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { StarIcon } from '@heroicons/react/20/solid';
+import RatingBadge from '../../common/RatingBadge';
 
 export default function ProductCard({ product, linkState }) {
     if (!product) return null;
@@ -65,50 +66,13 @@ export default function ProductCard({ product, linkState }) {
 
                     {/* Side-by-side compact rating icons (transparent wrapper) */}
                     {(product.Eco_Rating || product.Water_Rating) && (
-                        <div className="absolute top-2 left-2">
-                            <div className="flex items-center gap-2">
-                                {product.Eco_Rating && (
-                                    <div
-                                        className={`w-12 h-12 rounded-md bg-gradient-to-b ${gradeToEcoGradient(product.Eco_Rating)} flex flex-col items-center justify-evenly pt-0.5 pb-0.5 px-1 text-white shadow`}
-                                        title={`Eco ${product.Eco_Rating}`}
-                                    >
-                                        <div className="flex items-center gap-1 leading-none">
-                                            <svg
-                                                width="14"
-                                                height="14"
-                                                viewBox="0 0 24 24"
-                                                aria-label="eco"
-                                                role="img"
-                                            >
-                                                <path d="M12 2l4 5h-3l3 4h-3l3 4H8l3-4H8l3-4H8l4-5z" fill="white"></path>
-                                                <rect x="11" y="15" width="2" height="7" fill="white"></rect>
-                                            </svg>
-                                            <span className="text-xs font-extrabold">{product.Eco_Rating}</span>
-                                        </div>
-                                        <span className="text-[10px] font-bold leading-none">Eco</span>
-                                    </div>
-                                )}
-                                {product.Water_Rating && (
-                                    <div
-                                        className={`w-12 h-12 rounded-md bg-gradient-to-b ${gradeToWaterGradient(product.Water_Rating)} flex flex-col items-center justify-evenly pt-0.5 pb-0.5 px-1 text-white shadow`}
-                                        title={`Water ${product.Water_Rating}`}
-                                    >
-                                        <div className="flex items-center gap-1 leading-none">
-                                            <svg
-                                                width="14"
-                                                height="14"
-                                                viewBox="0 0 24 24"
-                                                aria-label="water"
-                                                role="img"
-                                            >
-                                                <path d="M12 2s7 7.58 7 12a7 7 0 1 1-14 0c0-4.42 7-12 7-12z" fill="white"></path>
-                                            </svg>
-                                            <span className="text-xs font-extrabold">{product.Water_Rating}</span>
-                                        </div>
-                                        <span className="text-[10px] font-bold leading-none">Water</span>
-                                    </div>
-                                )}
-                            </div>
+                        <div className="absolute top-2 left-2 flex gap-1.5">
+                            {product.Eco_Rating && (
+                                <RatingBadge kind="eco" grade={product.Eco_Rating} size="md" />
+                            )}
+                            {product.Water_Rating && (
+                                <RatingBadge kind="water" grade={product.Water_Rating} size="md" />
+                            )}
                         </div>
                     )}
 
