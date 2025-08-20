@@ -56,11 +56,11 @@ function HeroBanner() {
       {/* Headline & Quote */}
       <div className="absolute inset-0 flex flex-col justify-end pb-10 px-6 sm:px-10 lg:px-20">
         {/* Emphasize the quote and place it first */}
-        <h3 className="mt-2 text-lg sm:text-xl lg:text-2xl text-blue-500 font-semibold drop-shadow">
-          {quote}
-        </h3>
+        <h1 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white drop-shadow-2xl leading-tight">
+          “{quote}”
+        </h1>
         {/* Support line below, slightly de-emphasized */}
-        <h4 className="mt-2 text-lg sm:text-xl lg:text-2xl text-gray-100/90 font-semibold drop-shadow">
+        <h4 className="mt-2 text-base sm:text-lg lg:text-xl text-emerald-100/90 font-semibold drop-shadow">
           Explore Earth-Friendly Products
         </h4>
       </div>
