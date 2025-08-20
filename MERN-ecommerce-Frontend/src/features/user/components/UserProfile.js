@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectUserInfo, updateUserAsync } from '../userSlice';
+import { selectUserInfo, updateUserAsync, fetchLoggedInUserAsync } from '../userSlice';
 import { useForm } from 'react-hook-form';
+import { GlobeAltIcon, BeakerIcon, CloudIcon, TrophyIcon } from '@heroicons/react/24/outline';
 
 export default function UserProfile() {
   const dispatch = useDispatch();
@@ -17,6 +18,12 @@ export default function UserProfile() {
     setValue,
     formState: { errors },
   } = useForm();
+
+  // Ensure we have fresh user info (name, email) from the backend
+  useEffect(() => {
+    // Always refresh user info on profile load to ensure latest name/email
+    dispatch(fetchLoggedInUserAsync());
+  }, [dispatch]);
 
   const handleEdit = (addressUpdate, index) => {
     const newUser = { ...userInfo, addresses: [...userInfo.addresses] }; // for shallow copy issue
@@ -49,30 +56,112 @@ export default function UserProfile() {
   };
 
   return (
-    <div>
-      <div className="mx-auto mt-12 bg-white max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-          <h1 className="text-4xl my-5 font-bold tracking-tight text-gray-900">
-            Name: {userInfo.name ? userInfo.name : 'New User'}
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="inline-block text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-emerald-800 to-teal-600 bg-clip-text text-transparent leading-tight pb-2">
+            My Profile
           </h1>
-          <h3 className="text-xl my-5 font-bold tracking-tight text-red-900">
-            email address : {userInfo.email}
-          </h3>
-          {userInfo.role === 'admin' && (
-            <h3 className="text-xl my-5 font-bold tracking-tight text-red-900">
-              role : {userInfo.role}
-            </h3>
+          <p className="mt-2 text-lg sm:text-xl font-semibold text-emerald-900">
+            Welcome, {userInfo?.name ? userInfo.name : 'New User'}
+          </p>
+          {userInfo?.email && (
+            <p className="mt-1 text-sm sm:text-base text-emerald-700">{userInfo.email}</p>
+          )}
+          {userInfo?.role === 'admin' && (
+            <p className="mt-2 inline-block text-xs font-bold uppercase tracking-wide text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1">
+              Admin
+            </p>
           )}
         </div>
 
-        <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          <div className="bg-white/80 backdrop-blur rounded-2xl border border-emerald-200/40 p-5 flex items-center gap-4 shadow">
+            <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <GlobeAltIcon className="h-7 w-7 text-emerald-700" />
+            </div>
+            <div>
+              <p className="text-sm text-emerald-700">Eco Score</p>
+              <p className="text-2xl font-bold text-emerald-900">0</p>
+            </div>
+          </div>
+          <div className="bg-white/80 backdrop-blur rounded-2xl border border-sky-200/40 p-5 flex items-center gap-4 shadow">
+            <div className="h-12 w-12 rounded-xl bg-sky-100 flex items-center justify-center">
+              <BeakerIcon className="h-7 w-7 text-sky-700" />
+            </div>
+            <div>
+              <p className="text-sm text-sky-700">Water Score</p>
+              <p className="text-2xl font-bold text-sky-900">0</p>
+            </div>
+          </div>
+          <div className="bg-white/80 backdrop-blur rounded-2xl border border-emerald-200/40 p-5 flex items-center gap-4 shadow">
+            <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <CloudIcon className="h-7 w-7 text-emerald-700" />
+            </div>
+            <div>
+              <p className="text-sm text-emerald-700">Carbon Saved</p>
+              <p className="text-2xl font-bold text-emerald-900">0 kg</p>
+            </div>
+          </div>
+          <div className="bg-white/80 backdrop-blur rounded-2xl border border-sky-200/40 p-5 flex items-center gap-4 shadow">
+            <div className="h-12 w-12 rounded-xl bg-sky-100 flex items-center justify-center">
+              <BeakerIcon className="h-7 w-7 text-sky-700" />
+            </div>
+            <div>
+              <p className="text-sm text-sky-700">Water Saved</p>
+              <p className="text-2xl font-bold text-sky-900">0 L</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        <div className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-emerald-900">Badges</h2>
+            <span className="text-xs text-emerald-700">based on Eco & Water scores</span>
+          </div>
+          <div className="bg-white/80 backdrop-blur rounded-2xl border border-emerald-200/40 p-6">
+            <div className="flex flex-wrap gap-3">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold text-emerald-800 bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200">
+                <TrophyIcon className="h-4 w-4 text-emerald-700" /> Eco Newbie
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold text-sky-800 bg-gradient-to-r from-sky-100 to-blue-100 border border-sky-200">
+                <BeakerIcon className="h-4 w-4 text-sky-700" /> Water Watcher
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold text-emerald-800 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
+                More coming soon
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Addresses */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-emerald-900">Addresses</h2>
+            <button
+              onClick={(e) => {
+                setShowAddAddressForm(true);
+                setSelectedEditIndex(-1);
+              }}
+              type="button"
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            >
+              Add New Address
+            </button>
+          </div>
+        </div>
+
+        <div className="">
           <button
             onClick={(e) => {
               setShowAddAddressForm(true);
               setSelectedEditIndex(-1);
             }}
             type="submit"
-            className="rounded-md my-5 bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="hidden rounded-md my-5 bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             Add New Address
           </button>
@@ -259,6 +348,16 @@ export default function UserProfile() {
 
                 <div className="mt-6 flex items-center justify-end gap-x-6">
                   <button
+                    type="button"
+                    onClick={() => {
+                      reset();
+                      setShowAddAddressForm(false);
+                    }}
+                    className="rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
                     type="submit"
                     className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
                   >
@@ -269,8 +368,13 @@ export default function UserProfile() {
             </form>
           ) : null}
 
-          <p className="mt-0.5 text-sm text-gray-500">Your Addresses :</p>
-          {userInfo.addresses.map((address, index) => (
+          <p className="mt-0.5 text-sm text-gray-600">Your Addresses :</p>
+          {(userInfo?.addresses ?? []).length === 0 && (
+            <div className="mt-4 bg-white/70 backdrop-blur rounded-xl border border-emerald-100 p-6 text-emerald-800">
+              You have not added any addresses yet.
+            </div>
+          )}
+          {(userInfo?.addresses ?? []).map((address, index) => (
             <div key={index}>
               {selectedEditIndex === index ? (
                 <form
@@ -481,7 +585,7 @@ export default function UserProfile() {
                   </div>
                 </form>
               ) : null}
-              <div className="flex justify-between gap-x-6 px-5 py-5 border-solid border-2 border-gray-200">
+              <div className="flex justify-between gap-x-6 px-5 py-5 border-solid border-2 border-gray-200 bg-white/80 backdrop-blur rounded-xl">
                 <div className="flex gap-x-4">
                   <div className="min-w-0 flex-auto">
                     <p className="text-sm font-semibold leading-6 text-gray-900">
@@ -507,14 +611,14 @@ export default function UserProfile() {
                   <button
                     onClick={(e) => handleEditForm(index)}
                     type="button"
-                    className="font-medium text-indigo-600 hover:text-indigo-500"
+                    className="font-medium text-emerald-700 hover:text-emerald-600"
                   >
                     Edit
                   </button>
                   <button
                     onClick={(e) => handleRemove(e, index)}
                     type="button"
-                    className="font-medium text-indigo-600 hover:text-indigo-500"
+                    className="font-medium text-emerald-700 hover:text-emerald-600"
                   >
                     Remove
                   </button>

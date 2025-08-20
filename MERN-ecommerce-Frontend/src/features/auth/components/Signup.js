@@ -3,8 +3,8 @@ import { useForm } from 'react-hook-form';
 import { selectLoggedInUser, createUserAsync } from '../authSlice';
 import { Link } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
-import { 
-  EyeIcon, 
+import {
+  EyeIcon,
   EyeSlashIcon,
   UserPlusIcon,
   LockClosedIcon,
@@ -13,6 +13,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { UserIcon } from '@heroicons/react/24/outline';
 
 export default function Signup() {
   const dispatch = useDispatch();
@@ -32,7 +33,7 @@ export default function Signup() {
   // Password strength checker
   const getPasswordStrength = (password) => {
     if (!password) return { strength: 0, text: '', color: '' };
-    
+
     let strength = 0;
     const checks = {
       length: password.length >= 8,
@@ -55,7 +56,7 @@ export default function Signup() {
   return (
     <>
       {user && <Navigate to="/" replace={true}></Navigate>}
-      
+
       {/* Sustainability-themed Background */}
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         {/* Animated Background Elements */}
@@ -91,6 +92,7 @@ export default function Signup() {
               onSubmit={handleSubmit((data) => {
                 dispatch(
                   createUserAsync({
+                    name: data.name?.trim(),
                     email: data.email,
                     password: data.password,
                     addresses: [],
@@ -100,6 +102,37 @@ export default function Signup() {
                 console.log(data);
               })}
             >
+              {/* Name Field */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-semibold leading-6 text-emerald-800 mb-2"
+                >
+                  Your Name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <UserIcon className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <input
+                    id="name"
+                    {...register('name', {
+                      required: 'Name is required',
+                      validate: (v) => (v && v.trim().length >= 2) || 'Please enter your name',
+                    })}
+                    type="text"
+                    placeholder="Enter your full name"
+                    autoComplete="name"
+                    className="block w-full pl-10 pr-3 py-3 border border-emerald-200 rounded-xl text-gray-900 placeholder:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/70 backdrop-blur-sm transition-all duration-200"
+                  />
+                </div>
+                {errors.name && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <XCircleIcon className="h-4 w-4 mr-1" />
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
               {/* Email Field */}
               <div>
                 <label
@@ -109,8 +142,8 @@ export default function Signup() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <EnvelopeIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="email"
@@ -143,8 +176,8 @@ export default function Signup() {
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <LockClosedIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="password"
@@ -161,7 +194,7 @@ export default function Signup() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -183,11 +216,10 @@ export default function Signup() {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          passwordStrength.strength < 2 ? 'bg-red-500' :
+                        className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.strength < 2 ? 'bg-red-500' :
                           passwordStrength.strength < 4 ? 'bg-yellow-500' :
-                          'bg-emerald-500'
-                        }`}
+                            'bg-emerald-500'
+                          }`}
                         style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
                       ></div>
                     </div>
@@ -199,29 +231,29 @@ export default function Signup() {
                   <p className="text-xs text-emerald-700 font-medium">Password must contain:</p>
                   <div className="grid grid-cols-1 gap-1 text-xs">
                     <div className={`flex items-center ${password && password.length >= 8 ? 'text-emerald-600' : 'text-gray-500'}`}>
-                      {password && password.length >= 8 ? 
-                        <CheckCircleIcon className="h-3 w-3 mr-1" /> : 
+                      {password && password.length >= 8 ?
+                        <CheckCircleIcon className="h-3 w-3 mr-1" /> :
                         <XCircleIcon className="h-3 w-3 mr-1" />
                       }
                       At least 8 characters
                     </div>
                     <div className={`flex items-center ${password && /[A-Z]/.test(password) ? 'text-emerald-600' : 'text-gray-500'}`}>
-                      {password && /[A-Z]/.test(password) ? 
-                        <CheckCircleIcon className="h-3 w-3 mr-1" /> : 
+                      {password && /[A-Z]/.test(password) ?
+                        <CheckCircleIcon className="h-3 w-3 mr-1" /> :
                         <XCircleIcon className="h-3 w-3 mr-1" />
                       }
                       One uppercase letter
                     </div>
                     <div className={`flex items-center ${password && /[a-z]/.test(password) ? 'text-emerald-600' : 'text-gray-500'}`}>
-                      {password && /[a-z]/.test(password) ? 
-                        <CheckCircleIcon className="h-3 w-3 mr-1" /> : 
+                      {password && /[a-z]/.test(password) ?
+                        <CheckCircleIcon className="h-3 w-3 mr-1" /> :
                         <XCircleIcon className="h-3 w-3 mr-1" />
                       }
                       One lowercase letter
                     </div>
                     <div className={`flex items-center ${password && /\d/.test(password) ? 'text-emerald-600' : 'text-gray-500'}`}>
-                      {password && /\d/.test(password) ? 
-                        <CheckCircleIcon className="h-3 w-3 mr-1" /> : 
+                      {password && /\d/.test(password) ?
+                        <CheckCircleIcon className="h-3 w-3 mr-1" /> :
                         <XCircleIcon className="h-3 w-3 mr-1" />
                       }
                       One number
@@ -246,8 +278,8 @@ export default function Signup() {
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <LockClosedIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="confirmPassword"
@@ -262,7 +294,7 @@ export default function Signup() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (

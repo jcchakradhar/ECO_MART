@@ -9,6 +9,7 @@ const initialState = {
   status: 'idle',
   userInfo: null, // this info will be used in case of detailed user info, while auth will
   // only be used for loggedInUser id etc checks
+  orders: [], // keep orders separate to avoid being overwritten by userInfo fetches
 };
 
 export const fetchLoggedInUserOrderAsync = createAsyncThunk(
@@ -43,7 +44,7 @@ export const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-   
+
   },
   extraReducers: (builder) => {
     builder
@@ -52,7 +53,7 @@ export const userSlice = createSlice({
       })
       .addCase(fetchLoggedInUserOrderAsync.fulfilled, (state, action) => {
         state.status = 'idle';
-        state.userInfo.orders = action.payload;
+        state.orders = action.payload ?? [];
 
       })
       .addCase(updateUserAsync.pending, (state) => {
@@ -74,7 +75,7 @@ export const userSlice = createSlice({
   },
 });
 
-export const selectUserOrders = (state) => state.user.userInfo.orders;
+export const selectUserOrders = (state) => state.user.orders ?? [];
 export const selectUserInfo = (state) => state.user.userInfo;
 export const selectUserInfoStatus = (state) => state.user.status;
 

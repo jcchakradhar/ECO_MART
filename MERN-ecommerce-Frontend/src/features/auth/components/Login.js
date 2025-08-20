@@ -3,12 +3,12 @@ import { selectError, selectLoggedInUser } from '../authSlice';
 import { Link, Navigate } from 'react-router-dom';
 import { loginUserAsync } from '../authSlice';
 import { useForm } from 'react-hook-form';
-import { 
-  EyeIcon, 
+import {
+  EyeIcon,
   EyeSlashIcon,
   UserIcon,
   LockClosedIcon,
-  EnvelopeIcon 
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
@@ -26,7 +26,7 @@ export default function Login() {
   return (
     <>
       {user && <Navigate to="/" replace={true}></Navigate>}
-      
+
       {/* Sustainability-themed Background */}
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         {/* Animated Background Elements */}
@@ -74,8 +74,8 @@ export default function Login() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <EnvelopeIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="email"
@@ -108,8 +108,8 @@ export default function Login() {
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <LockClosedIcon className="h-5 w-5 text-emerald-500" />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
+                    <LockClosedIcon className="h-5 w-5 text-emerald-600" />
                   </div>
                   <input
                     id="password"
@@ -122,7 +122,7 @@ export default function Login() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
