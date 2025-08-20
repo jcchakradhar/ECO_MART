@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect } from 'react';
+import React, { useState, Fragment, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   fetchProductsByFiltersAsync,
@@ -7,8 +7,7 @@ import {
   selectTotalItems,
 } from '../productSlice';
 import { Menu, Transition } from '@headlessui/react';
-import { StarIcon } from '@heroicons/react/20/solid';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { ITEMS_PER_PAGE } from '../../../app/constants';
 import Pagination from '../../common/Pagination';
@@ -32,7 +31,16 @@ function classNames(...classes) {
 }
 
 // Hero Banner Component
-function HeroBanner({ totalItems }) {
+const QUOTES = [
+  'Small choices. Big impact. Choose eco-friendly today.',
+  'Buy green, live clean. Your planet will thank you.',
+  'Sustainable shopping starts with a single step.',
+  'Choose better. Shop smarter. Protect tomorrow.',
+  'Every eco purchase plants a seed for the future.'
+];
+
+function HeroBanner() {
+  const quote = useMemo(() => QUOTES[Math.floor(Math.random() * QUOTES.length)], []);
   return (
     <div className="relative w-full">
       {/* Banner Image */}
@@ -45,14 +53,16 @@ function HeroBanner({ totalItems }) {
       </div>
       {/* Gradient overlay for text readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-black/0 pointer-events-none" />
-      {/* Headline & Count */}
+      {/* Headline & Quote */}
       <div className="absolute inset-0 flex flex-col justify-end pb-10 px-6 sm:px-10 lg:px-20">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white drop-shadow-md">
+        {/* Emphasize the quote and place it first */}
+        <h3 className="mt-2 text-lg sm:text-xl lg:text-2xl text-blue-500 font-semibold drop-shadow">
+          {quote}
+        </h3>
+        {/* Support line below, slightly de-emphasized */}
+        <h4 className="mt-2 text-lg sm:text-xl lg:text-2xl text-gray-100/90 font-semibold drop-shadow">
           Explore Earth-Friendly Products
-        </h1>
-        <p className="mt-2 text-lg text-gray-100 drop-shadow-sm">
-          {totalItems} items curated for conscious shoppers
-        </p>
+        </h4>
       </div>
     </div>
   );
@@ -125,7 +135,7 @@ export default function ProductList() {
         {/* Filters removed from UI */}
 
         {/* Large Amazon-style Hero Banner */}
-        <HeroBanner totalItems={totalItems} />
+        <HeroBanner />
 
         <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Sort/Filter Header - Now below the banner */}
@@ -242,24 +252,6 @@ export default function ProductList() {
 
 
 function ProductGrid({ products, status, page }) {
-  // Function to generate random carbon rating for demo purposes
-  const getCarbonRating = () => {
-    const ratings = ['A+', 'A', 'B+', 'B', 'C+', 'C'];
-    return ratings[Math.floor(Math.random() * ratings.length)];
-  };
-
-  const getCarbonColor = (rating) => {
-    switch (rating) {
-      case 'A+': return 'bg-green-600 text-white';
-      case 'A': return 'bg-green-500 text-white';
-      case 'B+': return 'bg-yellow-500 text-white';
-      case 'B': return 'bg-yellow-600 text-white';
-      case 'C+': return 'bg-orange-500 text-white';
-      case 'C': return 'bg-red-500 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
-  };
-
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-2xl px-4 py-0 sm:px-6 sm:py-0 lg:max-w-7xl lg:px-8">

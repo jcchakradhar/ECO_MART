@@ -19,6 +19,7 @@ import {
   ShieldCheckIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
+import RatingBadge from '../../common/RatingBadge';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -116,6 +117,14 @@ export default function ProductDetail() {
     dispatch(fetchProductByIdAsync(params.id));
   }, [dispatch, params.id]);
 
+  // Ensure we start at the top when navigating to a product detail
+  useEffect(() => {
+    // Jump to the top whenever the product id changes
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [params.id]);
+
   useEffect(() => {
     if (product && product.images) {
       setSelectedImage(0);
@@ -204,8 +213,18 @@ export default function ProductDetail() {
                   </div>
                 </div>
 
-                {/* Main Image */}
-                <div className="aspect-h-1 aspect-w-1 w-full">
+                {/* Main Image with Sustainability Badges */}
+                <div className="aspect-h-1 aspect-w-1 w-full relative">
+                  {(product?.Eco_Rating || product?.Water_Rating) && (
+                    <div className="absolute top-2 right-2 z-10 flex flex-row items-start gap-2">
+                      {product?.Eco_Rating && (
+                        <RatingBadge kind="eco" grade={product.Eco_Rating} size="lg" />
+                      )}
+                      {product?.Water_Rating && (
+                        <RatingBadge kind="water" grade={product.Water_Rating} size="lg" />
+                      )}
+                    </div>
+                  )}
                   <img
                     src={
                       product.images?.[selectedImage] ||

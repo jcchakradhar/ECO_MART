@@ -338,33 +338,33 @@ export default function Cart() {
                 <h2 className="text-xl font-bold text-emerald-900 mb-6">Order Summary</h2>
 
                 {!isEmpty ? (
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-emerald-700">Subtotal ({totalItems} items)</span>
-                    <span className="font-medium text-emerald-900">${totalAmount.toFixed(2)}</span>
-                  </div>
-
-                  {totalSavings > 0 && (
+                  <div className="space-y-4 mb-6">
                     <div className="flex justify-between text-sm">
-                      <span className="text-emerald-700">You Save</span>
-                      <span className="font-medium text-green-600">-${totalSavings.toFixed(2)}</span>
+                      <span className="text-emerald-700">Subtotal ({totalItems} items)</span>
+                      <span className="font-medium text-emerald-900">${totalAmount.toFixed(2)}</span>
                     </div>
-                  )}
 
-                  <div className="flex justify-between text-sm">
-                    <span className="text-emerald-700">Shipping</span>
-                    <span className="font-medium text-green-600">Free</span>
-                  </div>
+                    {totalSavings > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-emerald-700">You Save</span>
+                        <span className="font-medium text-green-600">-${totalSavings.toFixed(2)}</span>
+                      </div>
+                    )}
 
-                  <div className="border-t border-emerald-200 pt-4">
-                    <div className="flex justify-between">
-                      <span className="text-lg font-semibold text-emerald-900">Total</span>
-                      <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                        ${totalAmount.toFixed(2)}
-                      </span>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-emerald-700">Shipping</span>
+                      <span className="font-medium text-green-600">Free</span>
+                    </div>
+
+                    <div className="border-t border-emerald-200 pt-4">
+                      <div className="flex justify-between">
+                        <span className="text-lg font-semibold text-emerald-900">Total</span>
+                        <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                          ${totalAmount.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
                 ) : (
                   <div className="text-center mb-6 text-emerald-700">
                     Your cart is currently empty.
