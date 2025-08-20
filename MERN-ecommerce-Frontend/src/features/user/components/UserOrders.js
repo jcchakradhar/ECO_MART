@@ -40,7 +40,7 @@ export default function UserOrders() {
 
   return (
     <div>
-      {orders && [...orders]
+      {orders && orders.length > 0 ? ([...orders]
         .sort((a, b) => {
           const toMs = (d) => {
             if (!d) return 0;
@@ -152,7 +152,20 @@ export default function UserOrders() {
               </div>
             </div>
           </div>
-        ))}
+        ))) : (
+        <div className="mx-auto mt-16 max-w-3xl text-center text-gray-600">
+          <h2 className="text-2xl font-semibold text-gray-800">You have no orders yet</h2>
+          <p className="mt-2">Browse products and place your first eco-friendly order.</p>
+          <div className="mt-6">
+            <Link
+              to="/"
+              className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            >
+              Continue Shopping
+            </Link>
+          </div>
+        </div>
+      )}
       {status === 'loading' ? (
         <Grid
           height="80"

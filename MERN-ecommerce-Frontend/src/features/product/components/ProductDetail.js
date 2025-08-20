@@ -216,7 +216,7 @@ export default function ProductDetail() {
                 {/* Main Image with Sustainability Badges */}
                 <div className="aspect-h-1 aspect-w-1 w-full relative">
                   {(product?.Eco_Rating || product?.Water_Rating) && (
-                    <div className="absolute top-2 right-2 z-10 flex flex-row items-start gap-2">
+                    <div className="absolute top-2 left-2 z-10 flex flex-row items-start gap-1">
                       {product?.Eco_Rating && (
                         <RatingBadge kind="eco" grade={product.Eco_Rating} size="lg" />
                       )}
