@@ -16,10 +16,15 @@ import { Grid } from 'react-loader-spinner';
 import sustainabilityImage from '../../../assests/generated-image.png';
 import ProductCard from './ProductCard';
 
-const sortOptions = [
-  { name: 'Best Rating', sort: 'rating', order: 'desc', current: false },
-  { name: 'Price: Low to High', sort: 'discountPrice', order: 'asc', current: false },
-  { name: 'Price: High to Low', sort: 'discountPrice', order: 'desc', current: false },
+const sortFieldOptions = [
+  { name: 'Rating', value: 'rating' },
+  { name: 'Price', value: 'discountPrice' },
+  { name: 'Eco Rating', value: 'Eco_Rating' },
+  { name: 'Water Rating', value: 'Water_Rating' },
+];
+const sortOrderOptions = [
+  { name: 'High to Low', value: 'desc' },
+  { name: 'Low to High', value: 'asc' },
 ];
 
 function classNames(...classes) {
@@ -62,17 +67,43 @@ export default function ProductList() {
   const [sort, setSort] = useState({});
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const sortParam = searchParams.get('_sort');
+  const orderParam = searchParams.get('_order');
   const [page, setPage] = useState(pageParam);
 
+  // initialize sort from URL if present
+  useEffect(() => {
+    if (sortParam && orderParam) {
+      setSort({ _sort: sortParam, _order: orderParam });
+    } else {
+      // default: Rating High to Low
+      setSort({ _sort: 'rating', _order: 'desc' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleSort = (e, option) => {
-    const sort = { _sort: option.sort, _order: option.order };
-    setSort(sort);
+  const handleFieldChange = (field) => {
+    const next = { _sort: field, _order: sort._order || 'desc' };
+    setSort(next);
+    setPage(1);
+    setSearchParams({ page: '1', _sort: next._sort, _order: next._order });
+  };
+
+  const handleOrderChange = (order) => {
+    const next = { _sort: sort._sort || 'rating', _order: order };
+    setSort(next);
+    setPage(1);
+    setSearchParams({ page: '1', _sort: next._sort, _order: next._order });
   };
 
   const handlePage = (pageNum) => {
     setPage(pageNum);
-    setSearchParams({ page: String(pageNum) });
+    const params = { page: String(pageNum) };
+    if (sort._sort && sort._order) {
+      params._sort = sort._sort;
+      params._order = sort._order;
+    }
+    setSearchParams(params);
   };
 
   useEffect(() => {
@@ -108,39 +139,25 @@ export default function ProductList() {
               </p>
             </div>
 
-            <div className="flex items-center space-x-4">
-              {/* Sort Menu */}
+            <div className="flex items-center space-x-3">
+              {/* Sort Field Menu */}
               <Menu as="div" className="relative inline-block text-left">
                 <div>
                   <Menu.Button className="group inline-flex justify-center text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md px-4 py-2 bg-white hover:bg-gray-50">
-                    Sort
-                    <ChevronDownIcon
-                      className="-mr-1 ml-1 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500"
-                      aria-hidden="true"
-                    />
+                    Sort by
+                    <ChevronDownIcon className="-mr-1 ml-1 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
                   </Menu.Button>
                 </div>
 
-                <Transition
-                  as={Fragment}
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
+                <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
                   <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
-                      {sortOptions.map((option) => (
-                        <Menu.Item key={option.name}>
+                      {sortFieldOptions.map((option) => (
+                        <Menu.Item key={option.value}>
                           {({ active }) => (
                             <button
-                              onClick={(e) => handleSort(e, option)}
-                              className={classNames(
-                                active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
-                                'block w-full px-4 py-2 text-left text-sm hover:bg-gray-50'
-                              )}
+                              onClick={() => handleFieldChange(option.value)}
+                              className={classNames(active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm hover:bg-gray-50')}
                             >
                               {option.name}
                             </button>
@@ -152,7 +169,48 @@ export default function ProductList() {
                 </Transition>
               </Menu>
 
-              {/* Filters button removed */}
+              {/* Order Menu */}
+              <Menu as="div" className="relative inline-block text-left">
+                <div>
+                  <Menu.Button className="group inline-flex justify-center text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md px-4 py-2 bg-white hover:bg-gray-50">
+                    Order
+                    <ChevronDownIcon className="-mr-1 ml-1 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
+                  </Menu.Button>
+                </div>
+
+                <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
+                  <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1">
+                      {sortOrderOptions.map((option) => (
+                        <Menu.Item key={option.value}>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleOrderChange(option.value)}
+                              className={classNames(active ? 'bg-gray-100 text-gray-900' : 'text-gray-700', 'block w-full px-4 py-2 text-left text-sm hover:bg-gray-50')}
+                            >
+                              {option.name}
+                            </button>
+                          )}
+                        </Menu.Item>
+                      ))}
+                    </div>
+                  </Menu.Items>
+                </Transition>
+              </Menu>
+
+              {/* Clear Sort */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSort({});
+                  setPage(1);
+                  setSearchParams({ page: '1' });
+                }}
+                className="text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white hover:bg-gray-50"
+                title="Clear sort"
+              >
+                Clear
+              </button>
             </div>
           </div>
 

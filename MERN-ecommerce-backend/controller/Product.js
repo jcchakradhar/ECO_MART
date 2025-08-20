@@ -114,6 +114,44 @@ exports.fetchAllProducts = async (req, res) => {
       return res.status(200).json(docs);
     }
 
+    // Sort by Eco/Water ratings using grade ranking A+ > A > B > C > D
+    if (sortField && (sortField === 'Eco_Rating' || sortField === 'Water_Rating')) {
+      const gradeField = sortField;
+      const pipeline = [
+        { $match: condition },
+        {
+          $addFields: {
+            gradeRank: {
+              $switch: {
+                branches: [
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'A+'] }, then: 5 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'A'] }, then: 4 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'B'] }, then: 3 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'C'] }, then: 2 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'D'] }, then: 1 },
+                ],
+                default: 0
+              }
+            }
+          }
+        },
+        { $sort: { gradeRank: sortOrder, _id: 1 } },
+      ];
+
+      if (hasPagination) {
+        pipeline.push({ $skip: pageSize * (page - 1) });
+        pipeline.push({ $limit: pageSize });
+      }
+
+      pipeline.push({ $addFields: { id: '$_id' } });
+      pipeline.push({ $project: { _id: 0 } });
+
+      const docs = await Product.aggregate(pipeline).exec();
+      console.log('Products returned (eco/water sort):', docs.length);
+      res.set('X-Total-Count', totalDocs);
+      return res.status(200).json(docs);
+    }
+
     // Default: simple find with optional sort and pagination
     if (sortField && sortOrderParam) {
       query = query.sort({ [sortField]: sortOrderParam });
@@ -203,6 +241,33 @@ exports.searchProducts = async (req, res) => {
         { $match: searchQuery },
         { $addFields: { sortPrice: { $ifNull: ['$discountPrice', '$price'] } } },
         { $sort: { sortPrice: sortOrder, _id: 1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $addFields: { id: '$_id' } },
+        { $project: { _id: 0 } }
+      ];
+      products = await Product.aggregate(pipeline).exec();
+    } else if (sortField && (sortField === 'Eco_Rating' || sortField === 'Water_Rating')) {
+      const gradeField = sortField;
+      const pipeline = [
+        { $match: searchQuery },
+        {
+          $addFields: {
+            gradeRank: {
+              $switch: {
+                branches: [
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'A+'] }, then: 5 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'A'] }, then: 4 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'B'] }, then: 3 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'C'] }, then: 2 },
+                  { case: { $eq: [{ $toUpper: `$${gradeField}` }, 'D'] }, then: 1 },
+                ],
+                default: 0
+              }
+            }
+          }
+        },
+        { $sort: { gradeRank: sortOrder, _id: 1 } },
         { $skip: skip },
         { $limit: limit },
         { $addFields: { id: '$_id' } },
