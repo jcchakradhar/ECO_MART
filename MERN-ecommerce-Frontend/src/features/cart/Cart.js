@@ -8,7 +8,6 @@ import {
   updateCartAsync,
 } from './cartSlice';
 import { Link } from 'react-router-dom';
-import { Navigate } from 'react-router-dom';
 import { Grid } from 'react-loader-spinner';
 import Modal from '../common/Modal';
 import {
@@ -28,6 +27,7 @@ export default function Cart() {
   const cartLoaded = useSelector(selectCartLoaded);
   const [openModal, setOpenModal] = useState(null);
   const [qtyDrafts, setQtyDrafts] = useState({});
+  const isEmpty = cartLoaded && items.length === 0;
 
   // Helpers to normalize prices and formatting
   const parseMoney = (v) => {
@@ -136,8 +136,6 @@ export default function Cart() {
 
   return (
     <>
-      {!items.length && cartLoaded && <Navigate to="/" replace={true}></Navigate>}
-
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -175,7 +173,7 @@ export default function Cart() {
             {/* Cart Items */}
             <div className="lg:col-span-7">
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-emerald-200/30 p-6">
-                {status === 'loading' ? (
+                {status === 'loading' || !cartLoaded ? (
                   <div className="flex justify-center items-center py-20">
                     <Grid
                       height="80"
@@ -187,6 +185,22 @@ export default function Cart() {
                       wrapperClass=""
                       visible={true}
                     />
+                  </div>
+                ) : isEmpty ? (
+                  <div className="text-center py-16">
+                    <div className="mx-auto h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                      <ShoppingBagIcon className="h-8 w-8 text-emerald-600" />
+                    </div>
+                    <h2 className="text-2xl font-semibold text-emerald-900">Your cart is empty</h2>
+                    <p className="mt-2 text-emerald-700">Add items to your cart to see them here.</p>
+                    <div className="mt-6">
+                      <Link
+                        to="/"
+                        className="inline-flex items-center px-6 py-3 border border-transparent text-base font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg transition-all"
+                      >
+                        Browse Products
+                      </Link>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -323,6 +337,7 @@ export default function Cart() {
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-emerald-200/30 p-6 sticky top-6">
                 <h2 className="text-xl font-bold text-emerald-900 mb-6">Order Summary</h2>
 
+                {!isEmpty ? (
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-700">Subtotal ({totalItems} items)</span>
@@ -350,34 +365,50 @@ export default function Cart() {
                     </div>
                   </div>
                 </div>
+                ) : (
+                  <div className="text-center mb-6 text-emerald-700">
+                    Your cart is currently empty.
+                  </div>
+                )}
 
                 {/* Benefits */}
-                <div className="bg-emerald-50 rounded-xl p-4 mb-6">
-                  <h3 className="text-sm font-semibold text-emerald-800 mb-3">Your Impact</h3>
-                  <div className="space-y-2 text-xs text-emerald-700">
-                    <div className="flex items-center">
-                      <CheckCircleIcon className="h-4 w-4 text-emerald-600 mr-2" />
-                      Carbon-conscious shopping choices
-                    </div>
-                    <div className="flex items-center">
-                      <TruckIcon className="h-4 w-4 text-emerald-600 mr-2" />
-                      Free eco-friendly shipping
-                    </div>
-                    <div className="flex items-center">
-                      <ShieldCheckIcon className="h-4 w-4 text-emerald-600 mr-2" />
-                      30-day sustainable return policy
+                {!isEmpty && (
+                  <div className="bg-emerald-50 rounded-xl p-4 mb-6">
+                    <h3 className="text-sm font-semibold text-emerald-800 mb-3">Your Impact</h3>
+                    <div className="space-y-2 text-xs text-emerald-700">
+                      <div className="flex items-center">
+                        <CheckCircleIcon className="h-4 w-4 text-emerald-600 mr-2" />
+                        Carbon-conscious shopping choices
+                      </div>
+                      <div className="flex items-center">
+                        <TruckIcon className="h-4 w-4 text-emerald-600 mr-2" />
+                        Free eco-friendly shipping
+                      </div>
+                      <div className="flex items-center">
+                        <ShieldCheckIcon className="h-4 w-4 text-emerald-600 mr-2" />
+                        30-day sustainable return policy
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Checkout Button */}
-                <Link
-                  to="/checkout"
-                  className="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
-                >
-                  <ShoppingBagIcon className="h-5 w-5 mr-2" />
-                  Proceed to Checkout
-                </Link>
+                {/* Checkout Button or Browse CTA */}
+                {!isEmpty ? (
+                  <Link
+                    to="/checkout"
+                    className="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                  >
+                    <ShoppingBagIcon className="h-5 w-5 mr-2" />
+                    Proceed to Checkout
+                  </Link>
+                ) : (
+                  <Link
+                    to="/"
+                    className="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                  >
+                    Start Shopping
+                  </Link>
+                )}
 
                 {/* Continue Shopping */}
                 <div className="mt-6 text-center">
