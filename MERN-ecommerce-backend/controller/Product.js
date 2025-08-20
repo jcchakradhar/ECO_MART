@@ -286,6 +286,24 @@ exports.searchProducts = async (req, res) => {
     // Log 4: See the final paginated products being sent in the response
     console.log(`Sending ${products.length} products in the response.`);
 
+    // Fire-and-forget: persist search term on the user (if authenticated)
+    try {
+      if (req.user && typeof searchTerm === 'string' && searchTerm.trim()) {
+        const trimmed = searchTerm.trim();
+        const { User } = require('../model/User');
+        // Optionally avoid pushing duplicates back-to-back
+        const userDoc = await User.findById(req.user.id).select('searchHistory');
+        if (userDoc) {
+          const last = userDoc.searchHistory?.[userDoc.searchHistory.length - 1];
+          if (last !== trimmed) {
+            await User.findByIdAndUpdate(req.user.id, { $push: { searchHistory: trimmed } });
+          }
+        }
+      }
+    } catch (persistErr) {
+      console.warn('search history persist failed:', persistErr?.message || persistErr);
+    }
+
     res.status(200).json({
       products,
       currentPage: page,
