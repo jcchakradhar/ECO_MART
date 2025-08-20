@@ -3,12 +3,12 @@ import { selectError, selectLoggedInUser } from '../authSlice';
 import { Link, Navigate } from 'react-router-dom';
 import { loginUserAsync } from '../authSlice';
 import { useForm } from 'react-hook-form';
-import { 
-  EyeIcon, 
+import {
+  EyeIcon,
   EyeSlashIcon,
   UserIcon,
   LockClosedIcon,
-  EnvelopeIcon 
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
@@ -26,7 +26,7 @@ export default function Login() {
   return (
     <>
       {user && <Navigate to="/" replace={true}></Navigate>}
-      
+
       {/* Sustainability-themed Background */}
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         {/* Animated Background Elements */}

@@ -11,12 +11,19 @@ const SearchBar = ({
 }) => {
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [showClearButton, setShowClearButton] = useState(false);
-  const { clearSearch } = useSearch();
+  const { clearSearch, searchTerm } = useSearch();
   const navigate = useNavigate();
 
   useEffect(() => {
     setShowClearButton(localSearchTerm.length > 0);
   }, [localSearchTerm]);
+
+  // Keep input in sync with global search term (e.g., on Search Results page)
+  useEffect(() => {
+    if (typeof searchTerm === 'string') {
+      setLocalSearchTerm(searchTerm);
+    }
+  }, [searchTerm]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -33,6 +40,8 @@ const SearchBar = ({
   const handleClear = () => {
     setLocalSearchTerm('');
     clearSearch();
+    // After clearing search, navigate to home page as requested
+    navigate('/');
   };
 
   // Use custom classes if provided, otherwise use default classes

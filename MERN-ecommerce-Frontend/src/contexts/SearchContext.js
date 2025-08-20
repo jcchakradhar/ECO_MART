@@ -24,7 +24,7 @@ export const SearchProvider = ({ children }) => {
     hasPrevPage: false
   });
 
-  const searchProducts = async (query, page = 1) => {
+  const searchProducts = async (query, page = 1, sort = null) => {
     if (!query.trim()) return;
 
     setIsLoading(true);
@@ -32,12 +32,18 @@ export const SearchProvider = ({ children }) => {
 
     try {
       // Add debug logs to track the request
-      console.log('Frontend - Making search request:', `/products/search?q=${encodeURIComponent(query)}&page=${page}&limit=12`);
-      
-      const response = await axios.get(`/products/search?q=${encodeURIComponent(query)}&page=${page}&limit=12`);
-      
+      const params = new URLSearchParams({ q: query, page: String(page), limit: '12' });
+      if (sort && sort._sort && sort._order) {
+        params.set('_sort', sort._sort);
+        params.set('_order', sort._order);
+      }
+      const reqUrl = `/products/search?${params.toString()}`;
+      console.log('Frontend - Making search request:', reqUrl);
+
+      const response = await axios.get(reqUrl);
+
       console.log('Frontend - API Response:', response.data);
-      
+
       const { products, ...paginationInfo } = response.data;
 
       // Add safety checks to prevent undefined errors
@@ -54,7 +60,7 @@ export const SearchProvider = ({ children }) => {
     } catch (err) {
       console.error('Frontend - Search error:', err);
       console.error('Frontend - Error response:', err.response);
-      
+
       // Set safe default values on error
       setSearchResults([]);
       setPagination({
@@ -64,7 +70,7 @@ export const SearchProvider = ({ children }) => {
         hasNextPage: false,
         hasPrevPage: false
       });
-      
+
       setError('Failed to search products. Please try again.');
     } finally {
       setIsLoading(false);

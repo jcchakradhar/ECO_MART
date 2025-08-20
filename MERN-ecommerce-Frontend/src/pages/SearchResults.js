@@ -1,10 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { useSearch } from '../contexts/SearchContext';
 import { Link, useSearchParams } from 'react-router-dom'; // 👈 1. Import useSearchParams
 import NavBar from '../features/navbar/Navbar';
 import Footer from '../features/common/Footer';
 import Pagination from '../features/common/Pagination';
 import ProductCard from '../features/product/components/ProductCard';
+import { Menu, Transition } from '@headlessui/react';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
+
+const sortOptions = [
+  { name: 'Best Rating', sort: 'rating', order: 'desc', current: false },
+  { name: 'Price: Low to High', sort: 'discountPrice', order: 'asc', current: false },
+  { name: 'Price: High to Low', sort: 'discountPrice', order: 'desc', current: false },
+];
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 const SearchResults = () => {
   const {
@@ -20,23 +32,44 @@ const SearchResults = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q');
   const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const sortParam = searchParams.get('_sort');
+  const orderParam = searchParams.get('_order');
   const [page, setPage] = useState(pageParam);
+  const [sort, setSort] = useState(
+    sortParam && orderParam ? { _sort: sortParam, _order: orderParam } : {}
+  );
 
   // 3. Use useEffect to trigger a search whenever the query in the URL changes
   useEffect(() => {
     if (!query) return;
     const p = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
     setPage(p);
-    searchProducts(query, p);
-  }, [query, pageParam]);
+    const s = sortParam && orderParam ? { _sort: sortParam, _order: orderParam } : {};
+    setSort(s);
+    searchProducts(query, p, s);
+  }, [query, pageParam, sortParam, orderParam]);
 
   const handlePageChange = (nextPage) => {
     if (!query) return;
     const next = Math.max(1, Math.min(nextPage, pagination.totalPages || 1));
     setPage(next);
-    searchProducts(query, next);
+    searchProducts(query, next, sort);
     // Reflect current page in URL for deep-link/back navigation
-    setSearchParams({ q: query, page: String(next) });
+    const params = { q: query, page: String(next) };
+    if (sort._sort && sort._order) {
+      params._sort = sort._sort;
+      params._order = sort._order;
+    }
+    setSearchParams(params);
+  };
+
+  const handleSort = (e, option) => {
+    const nextSort = { _sort: option.sort, _order: option.order };
+    setSort(nextSort);
+    // reset to first page on sort change
+    setPage(1);
+    searchProducts(query, 1, nextSort);
+    setSearchParams({ q: query, page: '1', _sort: nextSort._sort, _order: nextSort._order });
   };
 
   if (isLoading) {
@@ -56,15 +89,60 @@ const SearchResults = () => {
     <>
       <NavBar showHeader={false}>
 
-        {/* Search Results Header */}
+        {/* Search Results Header with Sort */}
         {searchTerm && (
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-emerald-800 mb-2">
-              Search Results for "{searchTerm}"
-            </h1>
-            <p className="text-emerald-600">
-              {pagination.totalResults} products found
-            </p>
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-emerald-800 mb-2">
+                Search Results for "{searchTerm}"
+              </h1>
+              <p className="text-emerald-600">
+                {pagination.totalResults} products found
+              </p>
+            </div>
+
+            {/* Sort Menu (same as Home) */}
+            <Menu as="div" className="relative inline-block text-left">
+              <div>
+                <Menu.Button className="group inline-flex justify-center text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md px-4 py-2 bg-white hover:bg-gray-50">
+                  Sort
+                  <ChevronDownIcon
+                    className="-mr-1 ml-1 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500"
+                    aria-hidden="true"
+                  />
+                </Menu.Button>
+              </div>
+
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-100"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="py-1">
+                    {sortOptions.map((option) => (
+                      <Menu.Item key={option.name}>
+                        {({ active }) => (
+                          <button
+                            onClick={(e) => handleSort(e, option)}
+                            className={classNames(
+                              active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
+                              'block w-full px-4 py-2 text-left text-sm hover:bg-gray-50'
+                            )}
+                          >
+                            {option.name}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    ))}
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
           </div>
         )}
 
