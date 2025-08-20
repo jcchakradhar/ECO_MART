@@ -3,17 +3,14 @@ import ProductDetail from "../features/product/components/ProductDetail";
 import Footer from "../features/common/Footer";
 
 function ProductDetailPage() {
-    return ( 
+    return (
         <div>
-            {/* <NavBar/>
-            <ProductDetail/></ProductDetail>
+            <NavBar showHeader={false}>
+                <ProductDetail />
             </NavBar>
-             <Footer/></Footer> */}
-             <NavBar />
-            <ProductDetail />
             <Footer />
         </div>
-     );
+    );
 }
 
 export default ProductDetailPage;

@@ -7,18 +7,19 @@ import {
   selectProductById,
   selectProductListStatus,
 } from '../productSlice';
-import { useParams } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { addToCartAsync, selectItems } from '../../cart/cartSlice';
 import { selectLoggedInUser } from '../../auth/authSlice';
 import { useAlert } from 'react-alert';
 import { Grid } from 'react-loader-spinner';
-import { 
-  HeartIcon, 
-  ShareIcon, 
+import {
+  HeartIcon,
+  ShareIcon,
   TruckIcon,
   ShieldCheckIcon,
-  ArrowPathIcon 
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
+import RatingBadge from '../../common/RatingBadge';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -33,7 +34,64 @@ export default function ProductDetail() {
   const dispatch = useDispatch();
   const params = useParams();
   const alert = useAlert();
+  const location = useLocation();
   const status = useSelector(selectProductListStatus);
+  // Normalize prices to avoid duplicated currency symbols
+  const parseMoney = (v) => {
+    if (v === undefined || v === null) return null;
+    const num = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.]/g, '')) : Number(v);
+    return Number.isFinite(num) ? num : null;
+  };
+  const priceVal = parseMoney(product?.price);
+  const discountVal = parseMoney(product?.discountPrice);
+  const displayPrice = discountVal ?? priceVal ?? 0;
+
+  // Prefer a short description if available; fallback to full description
+  const shortDescription = (
+    product?.shortDescription ||
+    product?.short_desc ||
+    product?.short_description ||
+    product?.Short_Description ||
+    product?.shortDesc ||
+    product?.ShortDesc ||
+    product?.summary ||
+    product?.Summary ||
+    product?.description ||
+    ''
+  );
+
+  // Build breadcrumbs dynamically if not provided from API
+  const fromSearch = location.state?.from === 'search';
+  const fromHome = location.state?.from === 'home';
+  const searchQuery = location.state?.q;
+  const searchPage = location.state?.page || 1;
+  const homePage = location.state?.page || 1;
+
+  const truncate = (str, n = 30) => {
+    if (!str) return '';
+    return str.length > n ? str.slice(0, n - 1) + '…' : str;
+  };
+
+  const computedBreadcrumbs = product && (!product.breadcrumbs || product.breadcrumbs.length === 0)
+    ? (
+      fromSearch
+        ? [
+          { id: 'search', name: truncate(searchQuery) || 'Search', href: `/search-results?q=${encodeURIComponent(searchQuery || '')}&page=${encodeURIComponent(searchPage)}` },
+          { id: 'item', name: product?.brand || product?.title }
+        ]
+        : fromHome
+          ? [
+            { id: 'home', name: 'Home', href: `/?page=${encodeURIComponent(homePage)}` },
+            { id: 'item', name: product?.brand || product?.title }
+          ]
+          : [
+            { id: 'home', name: 'Home', href: '/' },
+            ...(product.category ? [{ id: 'category', name: product.category, href: `/search-results?q=${encodeURIComponent(product.category)}` }] : []),
+            ...(product.brand ? [{ id: 'brand', name: product.brand, href: `/search-results?q=${encodeURIComponent(product.brand)}` }] : []),
+            { id: 'item', name: product?.title }
+          ]
+    )
+    : product?.breadcrumbs;
 
   const handleCart = (e) => {
     e.preventDefault();
@@ -49,7 +107,7 @@ export default function ProductDetail() {
       if (selectedSize) {
         newItem.size = selectedSize;
       }
-      dispatch(addToCartAsync({item:newItem, alert}));
+      dispatch(addToCartAsync({ item: newItem, alert }));
     } else {
       alert.error('Item Already added');
     }
@@ -58,6 +116,14 @@ export default function ProductDetail() {
   useEffect(() => {
     dispatch(fetchProductByIdAsync(params.id));
   }, [dispatch, params.id]);
+
+  // Ensure we start at the top when navigating to a product detail
+  useEffect(() => {
+    // Jump to the top whenever the product id changes
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+  }, [params.id]);
 
   useEffect(() => {
     if (product && product.images) {
@@ -82,22 +148,28 @@ export default function ProductDetail() {
           />
         </div>
       ) : null}
-      
+
       {product && (
         <div className="bg-white">
           {/* Breadcrumb Navigation */}
           <nav aria-label="Breadcrumb" className="bg-gray-50 border-b border-gray-200">
             <ol className="mx-auto flex max-w-7xl items-center space-x-2 px-4 py-4 sm:px-6 lg:px-8">
-              {product.breadcrumbs &&
-                product.breadcrumbs.map((breadcrumb) => (
-                  <li key={breadcrumb.id}>
-                    <div className="flex items-center">
-                      <a
-                        href={breadcrumb.href}
+              {(computedBreadcrumbs || []).map((breadcrumb, idx) => (
+                <li key={breadcrumb.id || `${breadcrumb.name}-${idx}`}>
+                  <div className="flex items-center">
+                    {breadcrumb.href ? (
+                      <Link
+                        to={breadcrumb.href}
                         className="mr-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
                       >
                         {breadcrumb.name}
-                      </a>
+                      </Link>
+                    ) : (
+                      <span className="mr-2 text-sm font-medium text-gray-700">
+                        {breadcrumb.name}
+                      </span>
+                    )}
+                    {idx < (computedBreadcrumbs?.length || 0) - 1 && (
                       <svg
                         width={16}
                         height={20}
@@ -108,19 +180,18 @@ export default function ProductDetail() {
                       >
                         <path d="M5.697 4.34L8.98 16.532h1.327L7.025 4.341H5.697z" />
                       </svg>
-                    </div>
-                  </li>
-                ))}
-              <li className="text-sm">
-                <span className="font-medium text-gray-700">{product.title}</span>
-              </li>
+                    )}
+                  </div>
+                </li>
+              ))}
+              {/* Last crumb is the current item; main title remains below */}
             </ol>
           </nav>
 
           {/* Main Product Content */}
           <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
             <div className="lg:grid lg:grid-cols-2 lg:gap-x-12 lg:items-start">
-              
+
               {/* Image Gallery */}
               <div className="flex flex-col-reverse">
                 {/* Image Thumbnails */}
@@ -130,9 +201,8 @@ export default function ProductDetail() {
                       <button
                         key={index}
                         onClick={() => setSelectedImage(index)}
-                        className={`relative flex h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${
-                          selectedImage === index ? 'ring-2 ring-blue-500' : ''
-                        }`}
+                        className={`relative flex h-24 cursor-pointer items-center justify-center rounded-md bg-white text-sm font-medium uppercase text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring focus:ring-opacity-50 focus:ring-offset-4 ${selectedImage === index ? 'ring-2 ring-blue-500' : ''
+                          }`}
                       >
                         <span className="sr-only">Image {index + 1}</span>
                         <span className="absolute inset-0 overflow-hidden rounded-md">
@@ -143,11 +213,26 @@ export default function ProductDetail() {
                   </div>
                 </div>
 
-                {/* Main Image */}
-                <div className="aspect-h-1 aspect-w-1 w-full">
+                {/* Main Image with Sustainability Badges */}
+                <div className="aspect-h-1 aspect-w-1 w-full relative">
+                  {(product?.Eco_Rating || product?.Water_Rating) && (
+                    <div className="absolute top-2 left-2 z-10 flex flex-row items-start gap-1">
+                      {product?.Eco_Rating && (
+                        <RatingBadge kind="eco" grade={product.Eco_Rating} size="lg" />
+                      )}
+                      {product?.Water_Rating && (
+                        <RatingBadge kind="water" grade={product.Water_Rating} size="lg" />
+                      )}
+                    </div>
+                  )}
                   <img
-                    src={product.images?.[selectedImage] || product.thumbnail}
-                    alt={product.title}
+                    src={
+                      product.images?.[selectedImage] ||
+                      product.imgUrl ||
+                      product.thumbnail ||
+                      'https://via.placeholder.com/800'
+                    }
+                    alt={product.title || 'Product image'}
                     className="h-full w-full object-cover object-center sm:rounded-lg border border-gray-200"
                   />
                 </div>
@@ -171,19 +256,12 @@ export default function ProductDetail() {
                 <div className="mt-6">
                   <div className="flex items-center space-x-3">
                     <p className="text-3xl font-bold text-red-600">
-                      ${product.discountPrice}
+                      ${displayPrice}
                     </p>
-                    {product.price !== product.discountPrice && (
-                      <>
-                        <p className="text-xl text-gray-500 line-through">
-                          ${product.price}
-                        </p>
-                        {product.discountPercentage > 0 && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            {product.discountPercentage}% OFF
-                          </span>
-                        )}
-                      </>
+                    {product.discountPercentage > 0 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {product.discountPercentage}% OFF
+                      </span>
                     )}
                   </div>
                   <p className="mt-2 text-sm text-gray-600">
@@ -217,11 +295,10 @@ export default function ProductDetail() {
                 {/* Stock Status */}
                 <div className="mt-6">
                   <div className="flex items-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      product.stock > 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${product.stock > 0
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                      }`}>
                       {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
                     </span>
                   </div>
@@ -361,11 +438,10 @@ export default function ProductDetail() {
                       onClick={handleCart}
                       type="submit"
                       disabled={product.stock === 0}
-                      className={`flex w-full items-center justify-center rounded-md border border-transparent px-8 py-3 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-                        product.stock > 0
-                          ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
-                          : 'bg-gray-400 cursor-not-allowed'
-                      }`}
+                      className={`flex w-full items-center justify-center rounded-md border border-transparent px-8 py-3 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${product.stock > 0
+                        ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
+                        : 'bg-gray-400 cursor-not-allowed'
+                        }`}
                     >
                       {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
                     </button>
@@ -390,32 +466,16 @@ export default function ProductDetail() {
                   </div>
                 </form>
 
-                {/* Delivery & Services */}
+                {/* Product Description (short) */
+                }
                 <div className="mt-10 border-t border-gray-200 pt-10">
-                  <h3 className="text-lg font-medium text-gray-900">Delivery & Services</h3>
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-center">
-                      <TruckIcon className="h-5 w-5 text-green-600 mr-3" />
-                      <span className="text-sm text-gray-600">Free delivery on orders over $50</span>
-                    </div>
-                    <div className="flex items-center">
-                      <ArrowPathIcon className="h-5 w-5 text-blue-600 mr-3" />
-                      <span className="text-sm text-gray-600">30-day return policy</span>
-                    </div>
-                    <div className="flex items-center">
-                      <ShieldCheckIcon className="h-5 w-5 text-purple-600 mr-3" />
-                      <span className="text-sm text-gray-600">2-year warranty included</span>
-                    </div>
+                  <h3 className="text-lg font-medium text-gray-900">Product Description</h3>
+                  <div className="mt-4 space-y-6">
+                    <p className="text-sm text-gray-600">{shortDescription || 'No description available.'}</p>
                   </div>
                 </div>
 
-                {/* Product Details */}
-                <div className="mt-10 border-t border-gray-200 pt-10">
-                  <h3 className="text-lg font-medium text-gray-900">Description</h3>
-                  <div className="mt-4 space-y-6">
-                    <p className="text-sm text-gray-600">{product.description}</p>
-                  </div>
-                </div>
+                {/* (Description section moved above as Product Description) */}
 
                 {product.highlights && product.highlights.length > 0 && (
                   <div className="mt-10 border-t border-gray-200 pt-10">
@@ -432,30 +492,107 @@ export default function ProductDetail() {
                   </div>
                 )}
 
-                {/* Additional Product Info */}
+                {/* Product Details */}
                 <div className="mt-10 border-t border-gray-200 pt-10">
-                  <h3 className="text-lg font-medium text-gray-900">Product Information</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Product Details</h3>
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="bg-gray-50 px-4 py-3 rounded-lg">
-                      <dt className="text-sm font-medium text-gray-500">Brand</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{product.brand}</dd>
+                    {
+                      (() => {
+                        const entries = [];
+                        const add = (key, label, value) => {
+                          if (value === undefined || value === null) return;
+                          const labelStr = String(label ?? '').trim();
+                          // Skip if label is missing or numeric-only to avoid nameless rows
+                          if (!labelStr || /^\d+$/.test(labelStr)) return;
+
+                          if (Array.isArray(value)) {
+                            if (value.length === 0) return;
+                            const joined = value
+                              .map((v) => (typeof v === 'object' && v !== null ? (v.name || JSON.stringify(v)) : String(v)))
+                              .join(', ');
+                            if (!joined) return;
+                            entries.push({ key, label: labelStr, value: joined });
+                          } else if (typeof value === 'object') {
+                            // Skip nested objects by default
+                            return;
+                          } else {
+                            const str = String(value).trim();
+                            if (!str) return;
+                            entries.push({ key, label: labelStr, value: str });
+                          }
+                        };
+
+                        // Known fields first (filtered)
+                        add('brand', 'Brand', product.brand);
+                        // Merge Seller Name and Address into one section (two lines)
+                        const sellerName = product.sellerName || product.seller?.name;
+                        const sellerAddress = product.sellerAddress || product.seller?.address || product.seller?.location;
+                        if (sellerName || sellerAddress) {
+                          entries.push({ key: 'sellerDetails', label: 'Seller Details', type: 'seller', value: { name: sellerName || '', address: sellerAddress || '' } });
+                        }
+                        add('dimensions', 'Dimensions', product.dimensions);
+                        add('material', 'Material', product.material);
+                        add('sku', 'SKU', product.sku);
+                        add('model', 'Model', product.model);
+                        add('weight', 'Weight', product.weight);
+                        add('warranty', 'Warranty', product.warranty);
+                        add('countryOfOrigin', 'Country of Origin', product.countryOfOrigin);
+                        add('colors', 'Colors', product.colors?.map(c => c?.name ?? c));
+                        add('sizes', 'Sizes', product.sizes?.map(s => s?.name ?? s));
+
+                        // Include any other primitive fields dynamically
+                        const shownKeys = new Set(entries.map(e => e.key));
+                        const exclude = new Set([
+                          'id', '_id', 'productId', 'product_id', 'title', 'description', 'shortDescription', 'short_desc',
+                          'short_description', 'Short_Description', 'shortDesc', 'ShortDesc', 'summary', 'Summary', 'description_short', 'desc_short',
+                          'price', 'discountPrice', 'discountPercentage', 'rating', 'ratingCount', 'rating_count', 'reviews', 'stars',
+                          'images', 'thumbnail', 'imgUrl', 'image', 'imageUrl', 'productUrl', 'productURL', 'url',
+                          'breadcrumbs', 'highlights', 'createdAt', 'updatedAt', '__v', 'deleted', 'isBestSeller', 'isBestSellar', 'isbestsellar',
+                          'category', 'categoryName', 'Eco_Rating', 'Water_Rating', 'carbonFootprint', 'Carbon_Footprint', 'waterUsage', 'water_usage',
+                          'stock', 'sellerName', 'sellerAddress', 'seller'
+                        ]);
+                        Object.keys(product || {}).forEach((k) => {
+                          if (shownKeys.has(k) || exclude.has(k)) return;
+                          const v = product[k];
+                          if (v === undefined || v === null) return;
+                          if (typeof v === 'object') return; // skip complex objects
+                          add(k, k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()), v);
+                        });
+
+                        return entries.map((e) => (
+                          <div key={e.key} className="bg-gray-50 px-4 py-3 rounded-lg">
+                            <dt className="text-sm font-medium text-gray-500">{e.label}</dt>
+                            {e.type === 'seller' ? (
+                              <dd className="mt-1 text-sm text-gray-900 break-words space-y-1">
+                                {e.value?.name ? (<div>{e.value.name}</div>) : null}
+                                {e.value?.address ? (<div className="text-gray-700">{e.value.address}</div>) : null}
+                              </dd>
+                            ) : (
+                              <dd className="mt-1 text-sm text-gray-900 break-words">{e.value}</dd>
+                            )}
+                          </div>
+                        ));
+                      })()
+                    }
+                  </div>
+                </div>
+
+                {/* Delivery & Services (moved to end) */}
+                <div className="mt-10 border-t border-gray-200 pt-10">
+                  <h3 className="text-lg font-medium text-gray-900">Delivery & Services</h3>
+                  <div className="mt-4 space-y-4">
+                    <div className="flex items-center">
+                      <TruckIcon className="h-5 w-5 text-green-600 mr-3" />
+                      <span className="text-sm text-gray-600">Free delivery on orders over $50</span>
                     </div>
-                    <div className="bg-gray-50 px-4 py-3 rounded-lg">
-                      <dt className="text-sm font-medium text-gray-500">Category</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{product.category}</dd>
+                    <div className="flex items-center">
+                      <ArrowPathIcon className="h-5 w-5 text-blue-600 mr-3" />
+                      <span className="text-sm text-gray-600">30-day return policy</span>
                     </div>
-                    {product.dimensions && (
-                      <div className="bg-gray-50 px-4 py-3 rounded-lg">
-                        <dt className="text-sm font-medium text-gray-500">Dimensions</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{product.dimensions}</dd>
-                      </div>
-                    )}
-                    {product.material && (
-                      <div className="bg-gray-50 px-4 py-3 rounded-lg">
-                        <dt className="text-sm font-medium text-gray-500">Material</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{product.material}</dd>
-                      </div>
-                    )}
+                    <div className="flex items-center">
+                      <ShieldCheckIcon className="h-5 w-5 text-purple-600 mr-3" />
+                      <span className="text-sm text-gray-600">2-year warranty included</span>
+                    </div>
                   </div>
                 </div>
               </div>
