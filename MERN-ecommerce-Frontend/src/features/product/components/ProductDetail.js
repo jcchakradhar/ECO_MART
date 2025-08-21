@@ -452,8 +452,8 @@ export default function ProductDetail() {
                         type="button"
                         className="flex-1 bg-white border border-gray-300 rounded-md py-3 px-8 flex items-center justify-center text-sm font-medium text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
-                        <HeartIcon className="h-5 w-5 mr-2" />
-                        Add to Wishlist
+                        {/* <HeartIcon className="h-5 w-5 mr-2" /> */}
+                       Buy Now
                       </button>
                       <button
                         type="button"
