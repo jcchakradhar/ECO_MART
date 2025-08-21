@@ -25,6 +25,49 @@ function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
+// Friendly labels for odd/DB-driven keys
+const DISPLAY_LABELS = {
+  category_name: 'Category',
+  categoryname: 'Category',
+
+  seller_name: 'Seller Name',
+  sellername: 'Seller Name',
+  seller_address: 'Seller Address',
+  selleraddress: 'Seller Address',
+
+  // Carbon footprint variants
+  carbonfootprintkgco2e: 'Carbon Footprint (kg CO2e)',
+  carbonfootprintkgco2: 'Carbon Footprint (kg CO2e)',
+  carbon_footprint_kg_co2e: 'Carbon Footprint (kg CO2e)',
+  carbonfootprint: 'Carbon Footprint (kg CO2e)',
+  // Handles "Carbon_ Footprint_kg C O2e"
+  carbonfootprintkgco2ealt: 'Carbon Footprint (kg CO2e)',
+
+  // Water usage variants
+  waterusagelitres: 'Water Usage (litres)',
+  waterusageliter: 'Water Usage (litres)',
+  water_usage_litres: 'Water Usage (litres)',
+  waterusage: 'Water Usage (litres)',
+
+  countryoforigin: 'Country of Origin',
+};
+
+const normalizeKey = (k) => String(k || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+const prettifyKey = (k) =>
+  String(k || '')
+    .replace(/[_\s]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, (c) => c.toUpperCase());
+
+const labelFor = (key, explicit) => {
+  if (explicit) return explicit;
+  const norm = normalizeKey(key);
+  const mapped = DISPLAY_LABELS[norm];
+  return mapped || prettifyKey(key);
+};
+
 export default function ProductDetail() {
   const [selectedColor, setSelectedColor] = useState();
   const [selectedSize, setSelectedSize] = useState();
@@ -36,6 +79,7 @@ export default function ProductDetail() {
   const alert = useAlert();
   const location = useLocation();
   const status = useSelector(selectProductListStatus);
+
   // Normalize prices to avoid duplicated currency symbols
   const parseMoney = (v) => {
     if (v === undefined || v === null) return null;
@@ -96,7 +140,6 @@ export default function ProductDetail() {
   const handleCart = (e) => {
     e.preventDefault();
     if (items.findIndex((item) => item.product.id === product.id) < 0) {
-      console.log({ items, product });
       const newItem = {
         product: product.id,
         quantity: 1,
@@ -119,7 +162,6 @@ export default function ProductDetail() {
 
   // Ensure we start at the top when navigating to a product detail
   useEffect(() => {
-    // Jump to the top whenever the product id changes
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     }
@@ -130,7 +172,6 @@ export default function ProductDetail() {
       setSelectedImage(0);
     }
   }, [product]);
-  console.log(params.id);
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -184,7 +225,6 @@ export default function ProductDetail() {
                   </div>
                 </li>
               ))}
-              {/* Last crumb is the current item; main title remains below */}
             </ol>
           </nav>
 
@@ -194,7 +234,7 @@ export default function ProductDetail() {
 
               {/* Image Gallery */}
               <div className="flex flex-col-reverse">
-                {/* Image Thumbnails */}
+                {/* Thumbnails */}
                 <div className="mx-auto mt-6 hidden w-full max-w-2xl sm:block lg:max-w-none">
                   <div className="grid grid-cols-4 gap-6" aria-orientation="horizontal" role="tablist">
                     {product.images?.slice(0, 4).map((image, index) => (
@@ -466,8 +506,7 @@ export default function ProductDetail() {
                   </div>
                 </form>
 
-                {/* Product Description (short) */
-                }
+                {/* Product Description (short) */}
                 <div className="mt-10 border-t border-gray-200 pt-10">
                   <h3 className="text-lg font-medium text-gray-900">Product Description</h3>
                   <div className="mt-4 space-y-6">
@@ -475,8 +514,7 @@ export default function ProductDetail() {
                   </div>
                 </div>
 
-                {/* (Description section moved above as Product Description) */}
-
+                {/* Highlights */}
                 {product.highlights && product.highlights.length > 0 && (
                   <div className="mt-10 border-t border-gray-200 pt-10">
                     <h3 className="text-lg font-medium text-gray-900">Highlights</h3>
@@ -499,11 +537,11 @@ export default function ProductDetail() {
                     {
                       (() => {
                         const entries = [];
+
                         const add = (key, label, value) => {
                           if (value === undefined || value === null) return;
-                          const labelStr = String(label ?? '').trim();
-                          // Skip if label is missing or numeric-only to avoid nameless rows
-                          if (!labelStr || /^\d+$/.test(labelStr)) return;
+                          const displayLabel = labelFor(key, label);
+                          if (!displayLabel || /^\d+$/.test(displayLabel)) return;
 
                           if (Array.isArray(value)) {
                             if (value.length === 0) return;
@@ -511,25 +549,43 @@ export default function ProductDetail() {
                               .map((v) => (typeof v === 'object' && v !== null ? (v.name || JSON.stringify(v)) : String(v)))
                               .join(', ');
                             if (!joined) return;
-                            entries.push({ key, label: labelStr, value: joined });
+                            entries.push({ key, label: displayLabel, value: joined });
                           } else if (typeof value === 'object') {
                             // Skip nested objects by default
                             return;
                           } else {
                             const str = String(value).trim();
                             if (!str) return;
-                            entries.push({ key, label: labelStr, value: str });
+                            entries.push({ key, label: displayLabel, value: str });
                           }
                         };
 
-                        // Known fields first (filtered)
+                        // Known/primary fields
                         add('brand', 'Brand', product.brand);
-                        // Merge Seller Name and Address into one section (two lines)
-                        const sellerName = product.sellerName || product.seller?.name;
-                        const sellerAddress = product.sellerAddress || product.seller?.address || product.seller?.location;
+
+                        // Category (support multiple variants)
+                        add('category_name', 'Category', product['Category_name'] || product.categoryName || product.category);
+
+                        // Seller Details (merge variants)
+                        const sellerName =
+                          product.sellerName ||
+                          product.seller?.name ||
+                          product['Seller_name'];
+                        const sellerAddress =
+                          product.sellerAddress ||
+                          product.seller?.address ||
+                          product.seller?.location ||
+                          product['Seller_address'];
                         if (sellerName || sellerAddress) {
-                          entries.push({ key: 'sellerDetails', label: 'Seller Details', type: 'seller', value: { name: sellerName || '', address: sellerAddress || '' } });
+                          entries.push({
+                            key: 'sellerDetails',
+                            label: 'Seller Details',
+                            type: 'seller',
+                            value: { name: sellerName || '', address: sellerAddress || '' }
+                          });
                         }
+
+                        // Common attributes
                         add('dimensions', 'Dimensions', product.dimensions);
                         add('material', 'Material', product.material);
                         add('sku', 'SKU', product.sku);
@@ -540,23 +596,54 @@ export default function ProductDetail() {
                         add('colors', 'Colors', product.colors?.map(c => c?.name ?? c));
                         add('sizes', 'Sizes', product.sizes?.map(s => s?.name ?? s));
 
-                        // Include any other primitive fields dynamically
+                        // Sustainability metrics (normalize odd keys)
+                        const carbonValue =
+                          product['Carbon_ Footprint_kg C O2e'] ??
+                          product['Carbon_Footprint_kg_CO2e'] ??
+                          product['Carbon_Footprint_kgCO2e'] ??
+                          product['CarbonFootprintKgCO2e'] ??
+                          product['carbonFootprint'] ??
+                          product['Carbon_Footprint'];
+                        add('Carbon_Footprint_kg_CO2e', 'Carbon Footprint (kg CO2e)', carbonValue);
+
+                        const waterUsageValue =
+                          product['Water_ Usage_ Litres'] ??
+                          product['Water_Usage_Litres'] ??
+                          product['WaterUsageLitres'] ??
+                          product['waterUsage'] ??
+                          product['water_usage'];
+                        add('Water_Usage_Litres', 'Water Usage (litres)', waterUsageValue);
+
+                        // Dynamic inclusion of other primitive fields (with exclusions)
                         const shownKeys = new Set(entries.map(e => e.key));
                         const exclude = new Set([
-                          'id', '_id', 'productId', 'product_id', 'title', 'description', 'shortDescription', 'short_desc',
-                          'short_description', 'Short_Description', 'shortDesc', 'ShortDesc', 'summary', 'Summary', 'description_short', 'desc_short',
-                          'price', 'discountPrice', 'discountPercentage', 'rating', 'ratingCount', 'rating_count', 'reviews', 'stars',
-                          'images', 'thumbnail', 'imgUrl', 'image', 'imageUrl', 'productUrl', 'productURL', 'url',
-                          'breadcrumbs', 'highlights', 'createdAt', 'updatedAt', '__v', 'deleted', 'isBestSeller', 'isBestSellar', 'isbestsellar',
-                          'category', 'categoryName', 'Eco_Rating', 'Water_Rating', 'carbonFootprint', 'Carbon_Footprint', 'waterUsage', 'water_usage',
-                          'stock', 'sellerName', 'sellerAddress', 'seller'
+                          'id', '_id', 'productId', 'product_id', 'title',
+                          'description', 'shortDescription', 'short_desc', 'short_description',
+                          'Short_Description', 'shortDesc', 'ShortDesc', 'summary', 'Summary',
+                          'description_short', 'desc_short',
+                          'price', 'discountPrice', 'discountPercentage',
+                          'rating', 'ratingCount', 'rating_count', 'reviews', 'stars',
+                          'images', 'thumbnail', 'imgUrl', 'image', 'imageUrl',
+                          'productUrl', 'productURL', 'url',
+                          'breadcrumbs', 'highlights', 'createdAt', 'updatedAt', '__v', 'deleted',
+                          'isBestSeller', 'isBestSellar', 'isbestsellar',
+                          // category variants (avoid dup)
+                          'category', 'categoryName', 'Category_name',
+                          // ratings
+                          'Eco_Rating', 'Water_Rating',
+                          // sustainability (avoid dup)
+                          'carbonFootprint', 'Carbon_Footprint', 'Carbon_Footprint_kg_CO2e', 'Carbon_Footprint_kgCO2e', 'Carbon_ Footprint_kg C O2e',
+                          'waterUsage', 'water_usage', 'Water_Usage_Litres', 'Water_ Usage_ Litres',
+                          // seller variants (avoid dup)
+                          'stock', 'sellerName', 'sellerAddress', 'Seller_name', 'Seller_address', 'seller'
                         ]);
+
                         Object.keys(product || {}).forEach((k) => {
                           if (shownKeys.has(k) || exclude.has(k)) return;
                           const v = product[k];
                           if (v === undefined || v === null) return;
                           if (typeof v === 'object') return; // skip complex objects
-                          add(k, k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()), v);
+                          add(k, undefined, v); // let labelFor prettify/match DISPLAY_LABELS
                         });
 
                         return entries.map((e) => (
@@ -577,7 +664,7 @@ export default function ProductDetail() {
                   </div>
                 </div>
 
-                {/* Delivery & Services (moved to end) */}
+                {/* Delivery & Services */}
                 <div className="mt-10 border-t border-gray-200 pt-10">
                   <h3 className="text-lg font-medium text-gray-900">Delivery & Services</h3>
                   <div className="mt-4 space-y-4">
