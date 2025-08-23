@@ -1,4 +1,4 @@
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   deleteItemFromCartAsync,
@@ -27,7 +27,11 @@ function Checkout() {
   } = useForm();
 
   const user = useSelector(selectUserInfo);
-  const items = useSelector(selectItems);
+  const cartItems = useSelector(selectItems);
+  const location = useLocation();
+  const buyNowItem = location.state?.buyNowItem;
+  const isBuyNow = !!buyNowItem;
+  const items = isBuyNow ? [buyNowItem] : cartItems;
   const status = useSelector(selectStatus);
   const currentOrder = useSelector(selectCurrentOrder);
 
@@ -135,8 +139,14 @@ function Checkout() {
 
   const handleOrder = (e) => {
     if (selectedAddress && paymentMethod) {
+      const normalizedItems = items.map((it) => ({
+        product: it.product,
+        quantity: it.quantity,
+        color: it.color,
+        size: it.size,
+      }));
       const order = {
-        items,
+        items: normalizedItems,
         totalAmount,
         totalItems,
         user: user.id,
@@ -151,7 +161,7 @@ function Checkout() {
   };
 
   // Redirects
-  if (!items.length) return <Navigate to="/" replace />;
+  if (!isBuyNow && !items.length) return <Navigate to="/" replace />;
   if (currentOrder && currentOrder.paymentMethod === 'cash')
     return <Navigate to={`/order-success/${currentOrder.id}`} replace />;
   if (currentOrder && currentOrder.paymentMethod === 'card')
