@@ -296,7 +296,11 @@ exports.searchProducts = async (req, res) => {
         if (userDoc) {
           const last = userDoc.searchHistory?.[userDoc.searchHistory.length - 1];
           if (last !== trimmed) {
-            await User.findByIdAndUpdate(req.user.id, { $push: { searchHistory: trimmed } });
+            // Append new term and keep only the last 15 entries (FIFO: drop oldest when exceeded)
+            await User.findByIdAndUpdate(
+              req.user.id,
+              { $push: { searchHistory: { $each: [trimmed], $slice: -15 } } }
+            );
           }
         }
       }

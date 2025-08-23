@@ -9,6 +9,7 @@ import {
 } from '../productSlice';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { addToCartAsync, selectItems } from '../../cart/cartSlice';
+import { useNavigate } from 'react-router-dom';
 import { selectLoggedInUser } from '../../auth/authSlice';
 import { useAlert } from 'react-alert';
 import { Grid } from 'react-loader-spinner';
@@ -79,6 +80,7 @@ export default function ProductDetail() {
   const alert = useAlert();
   const location = useLocation();
   const status = useSelector(selectProductListStatus);
+  const navigate = useNavigate();
 
   // Normalize prices to avoid duplicated currency symbols
   const parseMoney = (v) => {
@@ -154,6 +156,27 @@ export default function ProductDetail() {
     } else {
       alert.error('Item Already added');
     }
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    // Build a lightweight item for direct checkout without modifying the cart
+    const productSnapshot = {
+      id: product.id,
+      title: product.title,
+      brand: product.brand,
+      images: product.images,
+      imgUrl: product.imgUrl,
+      thumbnail: product.thumbnail,
+      price: product.price,
+      discountPrice: product.discountPrice,
+      Eco_Rating: product.Eco_Rating,
+      Water_Rating: product.Water_Rating,
+    };
+    const buyNowItem = { product: productSnapshot, quantity: 1 };
+    if (selectedColor) buyNowItem.color = selectedColor;
+    if (selectedSize) buyNowItem.size = selectedSize;
+    navigate('/checkout', { state: { buyNowItem } });
   };
 
   useEffect(() => {
@@ -490,10 +513,10 @@ export default function ProductDetail() {
                     <div className="flex space-x-3">
                       <button
                         type="button"
+                        onClick={handleBuyNow}
                         className="flex-1 bg-white border border-gray-300 rounded-md py-3 px-8 flex items-center justify-center text-sm font-medium text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       >
-                        {/* <HeartIcon className="h-5 w-5 mr-2" /> */}
-                       Buy Now
+                        Buy Now
                       </button>
                       <button
                         type="button"
