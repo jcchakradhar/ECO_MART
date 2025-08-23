@@ -1,4 +1,4 @@
-import React, { useState, Fragment, useEffect, useMemo } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   fetchProductsByFiltersAsync,
@@ -31,39 +31,39 @@ function classNames(...classes) {
 }
 
 // Hero Banner Component
-const QUOTES = [
-  'Small choices. Big impact. Choose eco-friendly today.',
-  'Buy green, live clean. Your planet will thank you.',
-  'Sustainable shopping starts with a single step.',
-  'Choose better. Shop smarter. Protect tomorrow.',
-  'Every eco purchase plants a seed for the future.'
-];
-
 function HeroBanner() {
-  const quote = useMemo(() => QUOTES[Math.floor(Math.random() * QUOTES.length)], []);
+  const [quote, setQuote] = useState('');
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await fetch('/motivation');
+        const data = await res.json();
+        if (active) setQuote(data?.message || 'Small steps make a big difference.');
+      } catch (e) {
+        if (active) setQuote('Small steps make a big difference. Try one more eco-friendly switch today!');
+      }
+    })();
+    return () => { active = false; };
+  }, []);
   return (
     <div className="relative w-full">
-      {/* Banner Image */}
-      <div className="w-full h-[40vh] sm:h-[45vh] lg:h-[50vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-100 via-lime-100 to-yellow-100">
+      {/* Overlayed Quote on the banner image */}
+      <div className="w-full h-[40vh] sm:h-[45vh] lg:h-[50vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-100 via-lime-100 to-yellow-100 relative">
+        {quote && (
+          <div className="absolute left-0 top-2 px-6 sm:px-10 lg:px-20 z-10">
+            <h4 className="text-xl sm:text-2xl lg:text-3xl font-bold text-black leading-tight  rounded pr-4 py-2">
+              {quote}
+            </h4>
+          </div>
+        )}
         <img
           src={sustainabilityImage}
           alt="Shop sustainably"
           className="object-contain h-full w-auto"
         />
       </div>
-      {/* Gradient overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-black/0 pointer-events-none" />
-      {/* Headline & Quote */}
-      <div className="absolute inset-0 flex flex-col justify-end pb-10 px-6 sm:px-10 lg:px-20">
-        {/* Emphasize the quote and place it first */}
-        <h1 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white drop-shadow-2xl leading-tight">
-          “{quote}”
-        </h1>
-        {/* Support line below, slightly de-emphasized */}
-        <h4 className="mt-2 text-base sm:text-lg lg:text-xl text-emerald-100/90 font-semibold drop-shadow">
-          Explore Earth-Friendly Products
-        </h4>
-      </div>
+      {/* Support line below, slightly de-emphasized */}
     </div>
   );
 }

@@ -12,6 +12,15 @@ exports.fetchUserById = async (req, res) => {
       addresses: user.addresses,
       email: user.email,
       role: user.role,
+      // sustainability fields
+      searchHistory: user.searchHistory,
+      purchase_history: user.purchase_history,
+      weights: user.weights,
+      price_tolerance: user.price_tolerance,
+      eco_score: user.eco_score,
+      water_score: user.water_score,
+      carbon_saved: user.carbon_saved,
+      water_saved: user.water_saved,
     });
   } catch (err) {
     res.status(400).json(err);
