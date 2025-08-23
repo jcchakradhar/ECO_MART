@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   deleteItemFromCartAsync,
@@ -19,6 +19,8 @@ import {
   ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import RatingBadge from '../common/RatingBadge';
+import { fetchProductsByFilters } from '../product/productAPI';
+import ProductCard from '../product/components/ProductCard';
 
 export default function Cart() {
   const dispatch = useDispatch();
@@ -28,6 +30,71 @@ export default function Cart() {
   const [openModal, setOpenModal] = useState(null);
   const [qtyDrafts, setQtyDrafts] = useState({});
   const isEmpty = cartLoaded && items.length === 0;
+
+  // Related products state grouped by brand
+  const [relatedByBrand, setRelatedByBrand] = useState({}); // brand -> products[]
+  const [loadingBrand, setLoadingBrand] = useState({}); // brand -> boolean
+
+  const normalizeBrand = (b) => String(b || '').trim();
+
+  // Collect unique, valid brands from items
+  const brandsInCart = useMemo(() => {
+    const set = new Set();
+    for (const it of items || []) {
+      const b = normalizeBrand(it?.product?.brand);
+      if (b) set.add(b);
+    }
+    return Array.from(set);
+  }, [items]);
+
+  // Map of brand -> Set(productIds) currently in cart (to exclude from suggestions)
+  const cartIdsByBrand = useMemo(() => {
+    const map = new Map();
+    for (const it of items || []) {
+      const b = normalizeBrand(it?.product?.brand);
+      const pid = it?.product?.id;
+      if (!b || !pid) continue;
+      if (!map.has(b)) map.set(b, new Set());
+      map.get(b).add(pid);
+    }
+    return map;
+  }, [items]);
+
+  // Fetch related products per brand (up to 10)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadBrand(brandRaw) {
+      const brand = normalizeBrand(brandRaw);
+      try {
+        setLoadingBrand((s) => ({ ...s, [brand]: true }));
+        const { data } = await fetchProductsByFilters(
+          { brand: [brand] },
+          {},
+          { _page: 1, _limit: 12 }, // fetch a few extra; we'll filter out current items then cap to 10
+          false
+        );
+        const products = data?.products || [];
+        if (!cancelled) {
+          setRelatedByBrand((m) => ({ ...m, [brand]: products }));
+        }
+      } catch (e) {
+        // no-op
+      } finally {
+        // Always clear loading to avoid stuck spinner even if effect re-ran
+        setLoadingBrand((s) => ({ ...s, [brand]: false }));
+      }
+    }
+
+    for (const brandRaw of brandsInCart) {
+      const brand = normalizeBrand(brandRaw);
+      if (brand && !relatedByBrand[brand] && !loadingBrand[brand]) {
+        loadBrand(brand);
+      }
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [brandsInCart]);
 
   // Helpers to normalize prices and formatting
   const parseMoney = (v) => {
@@ -324,6 +391,38 @@ export default function Cart() {
                             cancelAction={() => setOpenModal(null)}
                             showModal={openModal === item.id}
                           />
+
+                          {/* Related products by brand */}
+                          {normalizeBrand(item?.product?.brand) && (
+                            <div className="mt-6">
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-semibold text-emerald-900">
+                                  More from {normalizeBrand(item.product.brand)}
+                                </h4>
+                                {loadingBrand[normalizeBrand(item.product.brand)] && (
+                                  <span className="text-xs text-emerald-600">Loading…</span>
+                                )}
+                              </div>
+                              <div className="overflow-x-auto">
+                                <div className="flex gap-4 pb-2">
+                                  {(relatedByBrand[normalizeBrand(item.product.brand)] || [])
+                                    .filter((p) => {
+                                      const set = cartIdsByBrand.get(normalizeBrand(item.product.brand));
+                                      return !set || !set.has(p?.id);
+                                    })
+                                    .slice(0, 10)
+                                    .map((p) => (
+                                      <div key={p.id} className="w-44 flex-shrink-0">
+                                        <ProductCard product={p} />
+                                      </div>
+                                    ))}
+                                  {(!relatedByBrand[normalizeBrand(item.product.brand)] || (relatedByBrand[normalizeBrand(item.product.brand)] || []).length === 0) && !loadingBrand[normalizeBrand(item.product.brand)] && (
+                                    <div className="text-sm text-emerald-700">No related products found.</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
