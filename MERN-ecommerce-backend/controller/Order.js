@@ -30,23 +30,49 @@ exports.createOrder = async (req, res) => {
     const doc = await order.save();
     const user = await User.findById(order.user)
 
-    // Update user's purchase_history with the ObjectIds of purchased products
+    // Update user's purchase_history with product_id strings (not ObjectIds)
     try {
       const productIds = Array.isArray(order.items)
         ? Array.from(new Set(
           order.items
-            .map((it) => it?.product?.id || it?.product?._id || it?.product)
-            .filter(Boolean)
-            .map((id) => {
-              try { return new mongoose.Types.ObjectId(String(id)); } catch { return null; }
+            .map((it) => {
+              const p = it?.product || {};
+              // Prefer explicit product_id field if present; otherwise try to read from DB
+              return p.product_id || null;
             })
             .filter(Boolean)
+            .map(String)
         ))
         : [];
 
-      if (productIds.length) {
+      // If some items lack product_id on the embedded product, fetch them quickly
+      if (Array.isArray(order.items)) {
+        const missingIdx = order.items
+          .map((it, idx) => (!it?.product?.product_id ? idx : -1))
+          .filter((idx) => idx !== -1);
+        if (missingIdx.length) {
+          const idsToFetch = Array.from(new Set(
+            missingIdx
+              .map((idx) => order.items[idx]?.product?.id || order.items[idx]?.product?._id)
+              .filter(Boolean)
+              .map(String)
+          ));
+          if (idsToFetch.length) {
+            const prods = await Product.find({ _id: { $in: idsToFetch } }).select('product_id').lean();
+            const map = new Map(prods.map((p) => [String(p._id), p.product_id]));
+            for (const idx of missingIdx) {
+              const raw = order.items[idx]?.product?.id || order.items[idx]?.product?._id;
+              const pid = map.get(String(raw));
+              if (pid) productIds.push(String(pid));
+            }
+          }
+        }
+      }
+
+      const unique = Array.from(new Set(productIds.filter(Boolean)));
+      if (unique.length) {
         await User.findByIdAndUpdate(order.user, {
-          $addToSet: { purchase_history: { $each: productIds } },
+          $addToSet: { purchase_history: { $each: unique } },
         });
       }
     } catch (e) {

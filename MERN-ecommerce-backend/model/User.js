@@ -13,7 +13,8 @@ const userSchema = new Schema({
   // store all search queries as strings per user
   searchHistory: { type: [String], default: [] },
   // new sustainability fields
-  purchase_history: { type: [Schema.Types.ObjectId], ref: 'Product', default: [] },
+  // Store product_id strings rather than Mongo ObjectIds
+  purchase_history: { type: [String], default: [] },
   weights: {
     carbon: { type: Number, default: 0.4 },
     water: { type: Number, default: 0.3 },
