@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from workable_data import workable_dataset
+# from workable_data import workable_dataset
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from workable_data import workable_dataset
@@ -311,3 +311,5 @@ from workable_data import workable_dataset
 
 # if __name__ == "__main__":
 #     main()
+
+print(workable_dataset.info())

@@ -1,9 +1,9 @@
 import pandas as pd
-from common_code import calculate_product_score, vectorizer, tag_vectors, get_user_avg_price
+from recommendation.common_code import calculate_product_score, vectorizer, tag_vectors, get_user_avg_price
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from common_code import remove_similar_items
-from workable_data import workable_dataset
+from recommendation.common_code import remove_similar_items
+from recommendation.workable_data import workable_dataset
 
 
 def from_search_history(df, search_history, weights):
@@ -88,6 +88,6 @@ def home_page_recommendations(user_profile,df):
     # Sort and return top K
     return combined.sort_values("final_score", ascending=False)["_id"]
 
-def user_home_page_recommendations(user_profile):
+def user_home_page_recommendations(user_profile,workable_dataset):
     recommendations = home_page_recommendations(user_profile,workable_dataset)
     return recommendations

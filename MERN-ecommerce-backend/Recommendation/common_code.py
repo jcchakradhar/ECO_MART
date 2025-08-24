@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
-from workable_data import workable_dataset
+from recommendation.workable_data import workable_dataset
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from workable_data import vectorizer, tag_vectors
+from recommendation.workable_data import vectorizer, tag_vectors
 
 user_profile = {
     "search_history": ["vegan soap", "eco toothpaste"],
