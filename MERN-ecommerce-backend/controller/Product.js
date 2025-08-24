@@ -1,5 +1,8 @@
 const { Product } = require('../model/Product');
 
+// Escape special regex chars in user input
+const escapeRegExp = (s = '') => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 exports.createProduct = async (req, res) => {
   // this product we have to get from API body
   const product = new Product(req.body);
@@ -46,25 +49,26 @@ exports.fetchAllProducts = async (req, res) => {
     condition.category = { $in: categoryConditions };
   }
 
-  // Case-insensitive brand filter with space/hyphen handling
+  // Case-insensitive brand filter with space/hyphen handling (substring match to tolerate minor inconsistencies)
   if (req.query.brand) {
     const searchTerms = req.query.brand.split(',');
     const brandConditions = [];
 
     for (const term of searchTerms) {
-      // Add the original term (case-insensitive)
-      brandConditions.push(new RegExp(`^${term}$`, 'i'));
+      const safe = escapeRegExp(term);
+      // Add the original term as a substring (case-insensitive)
+      brandConditions.push(new RegExp(`${safe}`, 'i'));
 
       // Convert hyphenated to spaced version
       const spacedVersion = term.replace(/-/g, ' ');
       if (spacedVersion !== term) {
-        brandConditions.push(new RegExp(`^${spacedVersion}$`, 'i'));
+        brandConditions.push(new RegExp(`${escapeRegExp(spacedVersion)}`, 'i'));
       }
 
       // Convert spaced to hyphenated version
       const hyphenatedVersion = term.replace(/\s+/g, '-');
       if (hyphenatedVersion !== term) {
-        brandConditions.push(new RegExp(`^${hyphenatedVersion}$`, 'i'));
+        brandConditions.push(new RegExp(`${escapeRegExp(hyphenatedVersion)}`, 'i'));
       }
     }
 

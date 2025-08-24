@@ -39,27 +39,30 @@ export function fetchProductsByFilters(filter, sort, pagination, admin) {
   // sort = {_sort:"price",_order="desc"}
   // pagination = {_page:1,_limit=10}
 
-  let queryString = '';
-  for (let key in filter) {
-    const categoryValues = filter[key];
-    if (categoryValues.length) {
-      queryString += `${key}=${categoryValues}&`;
+  const params = new URLSearchParams();
+  for (const key in filter) {
+    const values = filter[key];
+    if (Array.isArray(values)) {
+      // Backend expects comma-separated list (e.g., brand=a,b); URLSearchParams will encode
+      if (values.length) params.set(key, values.join(','));
+    } else if (values !== undefined && values !== null) {
+      params.set(key, String(values));
     }
   }
-  for (let key in sort) {
-    queryString += `${key}=${sort[key]}&`;
+  for (const key in sort) {
+    if (sort[key] !== undefined) params.set(key, String(sort[key]));
   }
-  for (let key in pagination) {
-    queryString += `${key}=${pagination[key]}&`;
+  for (const key in pagination) {
+    if (pagination[key] !== undefined) params.set(key, String(pagination[key]));
   }
-  if(admin){
-    queryString += `admin=true`;
+  if (admin) {
+    params.set('admin', 'true');
   }
 
   return new Promise(async (resolve) => {
-    const response = await fetch(
-      '/products?' + queryString
-    );
+    const response = await fetch('/products?' + params.toString(), {
+      credentials: 'include',
+    });
     const data = await response.json();
     const totalItems = await response.headers.get('X-Total-Count');
     resolve({ data: { products: data, totalItems: +totalItems } });
