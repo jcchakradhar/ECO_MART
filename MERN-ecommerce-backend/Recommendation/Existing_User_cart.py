@@ -95,7 +95,7 @@ def cart_alternatives(item, df, top_k=10):
 
     # Final concatenated DataFrame
     # if recommendations:
-    return recommendations["product_id"]
+    return recommendations["_id"]
     # else:
     #     return pd.DataFrame(columns=[
     #         "original_item", "Product Name", "Category", "Sale Price", 

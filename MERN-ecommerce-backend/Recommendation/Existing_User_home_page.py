@@ -2,11 +2,11 @@ import pandas as pd
 from common_code import calculate_product_score, vectorizer, tag_vectors, get_user_avg_price
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from common_code import search_history, purchase_history, weights, price_tolerance
 from common_code import remove_similar_items
+from workable_data import workable_dataset
 
 
-def from_search_history(df):
+def from_search_history(df, search_history, weights):
     scored_products = pd.DataFrame()
     for query in search_history:
         query_vec = vectorizer.transform([query])
@@ -26,7 +26,7 @@ def from_search_history(df):
     return scored_products
 
  # --- 2. Recommendations from Purchase History ---
-def from_purchase_history(df, purchased_categories, avg_purchase_price):
+def from_purchase_history(df, purchased_categories, avg_purchase_price, weights, price_tolerance=0.2):
     df_copy = df.copy()
     df_copy["similarity"] = 0  # No query similarity, but we’ll use sustainability
 
@@ -48,18 +48,25 @@ def from_purchase_history(df, purchased_categories, avg_purchase_price):
 
     return df_copy
 
-def home_page_recommendations(df):
+def home_page_recommendations(user_profile,df):
     """
     Recommends products for an existing user using both search and purchase history.
     """
+    purchase_history = user_profile.get("purchase_history", [])
+    search_history = user_profile.get("search_history", [])
+    weights = user_profile.get("weights")
+    price_tolerance = user_profile.get("price_tolerance", 0.2)
     purchased_df = df[df["product_id"].isin(purchase_history)]
     avg_purchase_price = get_user_avg_price(purchased_df, df)    
-    purchased_categories = set(purchased_df["Category"])
+    purchased_categories = set(purchased_df["category_name"])
     purchased_names = purchased_df["title"]
    
     # --- 3. Combine Both Recommendation Sources ---
-    search_recs = from_search_history(df, search_history)
-    purchase_recs = from_purchase_history(df, purchased_categories, avg_purchase_price)
+    search_recs, purchase_recs = pd.DataFrame(), pd.DataFrame()
+    if purchase_history:
+        search_recs = from_search_history(df, search_history,weights)
+    if purchase_history:
+        purchase_recs = from_purchase_history(df, purchased_categories, avg_purchase_price, weights, price_tolerance)
 
     combined = pd.concat([search_recs, purchase_recs], ignore_index=True)
 
@@ -79,4 +86,8 @@ def home_page_recommendations(df):
     }).reset_index()
 
     # Sort and return top K
-    return combined.sort_values("final_score", ascending=False)["product_id"]
+    return combined.sort_values("final_score", ascending=False)["_id"]
+
+def user_home_page_recommendations(user_profile):
+    recommendations = home_page_recommendations(user_profile,workable_dataset)
+    return recommendations

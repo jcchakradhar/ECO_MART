@@ -57,4 +57,4 @@ def recommend_alternatives_from_cart(item_id, df, weights, price_tolerance=0.2, 
 
     # 7. Remove duplicates, rank by score
     alt_candidates = alt_candidates.drop_duplicates(subset="product_id")
-    return alt_candidates.sort_values("final_score", ascending=False)["product_id"].head(top_k)
+    return alt_candidates.sort_values("final_score", ascending=False)["_id"].head(top_k)

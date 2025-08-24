@@ -133,8 +133,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 # --------------------------
 # Mongo Connection (standalone, no replica set)
 # --------------------------
-client = MongoClient("mongodb://localhost:27017/")
-db = client["ecomart"]
+client = MongoClient(".env/Mongo_URI")
+db = client["test"]
 collection = db["products"]
 
 # --------------------------

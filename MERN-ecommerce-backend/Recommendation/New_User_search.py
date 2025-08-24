@@ -48,4 +48,4 @@ def recommend_for_search_query(query, df, weights):
 def search_query_recommendations(query, df, weights):
     df_products = df.copy()
     recommendations = recommend_for_search_query(query, df_products, weights)
-    return recommendations["product_id"]
+    return recommendations["_id"]

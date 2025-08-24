@@ -3,6 +3,7 @@ import pandas as pd
 from workable_data import workable_dataset
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from workable_data import vectorizer, tag_vectors
 
 user_profile = {
     "search_history": ["vegan soap", "eco toothpaste"],
@@ -47,7 +48,6 @@ def remove_similar_items(df, purchased_names, threshold=0.8):
     max_sim = sim_matrix.max(axis=1)
     return df[max_sim < threshold]
 
-
 def calculate_product_score(row, weights):
     return (
         weights["rating"] * row["rating"] +
@@ -55,30 +55,9 @@ def calculate_product_score(row, weights):
         weights["water"] * water_grade_to_score[row["Water_Rating"]]
     )
 
-def form_vectorizer_tag_vectors(df):
-    df["Tags"] = df["Tags"].fillna("")
-    vectorizer = TfidfVectorizer(stop_words='english')
-    tag_vectors = vectorizer.fit_transform(df["Tags"])
-    return vectorizer, tag_vectors
-
-def form_vectorizer_product_names(df):
-    df["title"] = df["title"].fillna("")
-    vectorizer = TfidfVectorizer(stop_words='english')
-    name_vectors = vectorizer.fit_transform(df["title"])
-    return vectorizer, name_vectors
-
-def form_vectorizer_categories(df):
-    df["category_name"] = df["category_name"].fillna("")
-    vectorizer = TfidfVectorizer(stop_words='english')
-    category_vectors = vectorizer.fit_transform(df["category_name"])
-    return vectorizer, category_vectors
-
 def get_user_avg_price(purchased_df, df):
     return purchased_df['price'].mean() if not purchased_df.empty else None
 
-vectorizer, tag_vectors = form_vectorizer_tag_vectors(workable_dataset)
-product_vectorizer, product_vectors = form_vectorizer_product_names(workable_dataset)
-category_vectorizer, category_vectors = form_vectorizer_categories(workable_dataset)
 
 
 

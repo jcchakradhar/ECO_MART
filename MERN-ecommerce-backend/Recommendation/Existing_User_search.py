@@ -53,4 +53,4 @@ def search_based_recommendation(query, df):
 
     # --- Step 7: Return Top K Recommendations ---
     df_copy = df_copy.sort_values("final_score", ascending=False)
-    return df_copy["product_id"]
+    return df_copy["_id"]
