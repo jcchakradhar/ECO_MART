@@ -8,9 +8,9 @@ bp = Blueprint("recommendations", __name__)
 get_current_user()
 user_profile = profile 
 
-# @bp.route("/api/recommendations/home", methods=["GET"]
+@bp.route("/api/recommendations/home", methods=["GET"])
 def get_home_page_recommendations():
-    data = user_home_page_recommendations(user_profile, workable_dataset)
+    data = user_home_page_recommendations(user_profile, workable_dataset).tolist()
     return jsonify(data)
     
 
