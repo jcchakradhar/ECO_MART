@@ -1,3 +1,75 @@
-node_modules
+# Node
+node_modules/
 package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npmrc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.nyc_output/
+coverage/
+.eslintcache
+.cache/
+dist/
+build/
+out/
+.tmp/
+tmp/
+temp/
+
+# Env and secrets
 .env
+.env.*.local
+*.local.env
+*.env.local
+*.pem
+*.key
+
+# Logs and pids
+logs/
+*.log
+*.pid
+*.pid.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Uploads (adjust if needed)
+uploads/
+
+# Python (recommendation module)
+recommendation/.venv/
+recommendation/venv/
+recommendation/__pycache__/
+recommendation/**/__pycache__/
+recommendation/**/*.pyc
+recommendation/*.pyc
+recommendation/.pytest_cache/
+recommendation/.ipynb_checkpoints/
+recommendation/.mypy_cache/
+recommendation/.ruff_cache/
+recommendation/.cache/
+recommendation/build/
+recommendation/dist/
+recommendation/*.egg-info/
+
+# Recommendation cache artifacts
+recommendation/workable_dataset.parquet
+recommendation/*.parquet
+
+# Optional: separate .env in recommendation
+recommendation/.env
+
+# Keep requirement files tracked
+!recommendation/requirements.txt
