@@ -10,9 +10,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 # Load environment variables
 # --------------------------
 load_dotenv()
-mongo_uri = os.getenv("MONGO_URI")   # Ensure .env has: MONGO_URI=mongodb+srv://...
-if not mongo_uri:
-    raise ValueError("❌ MONGO_URI not found in .env file")
+mongo_uri = os.getenv("MONGO_URI")   # Optional at import; required only when refreshing cache
 
 # --------------------------
 # Mongo Connection
@@ -100,6 +98,8 @@ def process_vectorizers():
 def refresh_cache():
     """Reload from DB, preprocess, save to disk, and rebuild vectorizers"""
     global workable_dataset
+    if not mongo_uri:
+        raise ValueError("MONGO_URI not found in environment. Cannot refresh cache from DB.")
     df = load_workable_data()
     workable_dataset = preprocess_dataset(df)
 
