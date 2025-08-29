@@ -1,10 +1,10 @@
 import pandas as pd
-from .common_code import calculate_product_score, vectorizer, tag_vectors, get_user_avg_price
+from recommendation.common_code import calculate_product_score, vectorizer, tag_vectors, get_user_avg_price
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from .common_code import remove_similar_items
-from .workable_data import workable_dataset
-from .New_User_Home_page import new_user_home_page_recommendations
+from recommendation.common_code import remove_similar_items
+from recommendation.workable_data import workable_dataset
+
 
 def from_search_history(df, search_history, weights):
     scored_products = pd.DataFrame()
@@ -52,22 +52,18 @@ def home_page_recommendations(user_profile,df):
     """
     Recommends products for an existing user using both search and purchase history.
     """
-    purchase_history = user_profile.get("purchase_history", []) or []
-    search_history = user_profile.get("search_history", []) or []
-    weights = user_profile.get("weights") or {"rating": 0.3, "carbon": 0.4, "water": 0.3}
+    purchase_history = user_profile.get("purchase_history", [])
+    search_history = user_profile.get("search_history", [])
+    weights = user_profile.get("weights")
     price_tolerance = user_profile.get("price_tolerance", 0.2)
-    # defend against missing column names; workable_data shows columns like 'product_id', 'title', 'category_name', 'price'
-    if "product_id" in df.columns:
-        purchased_df = df[df["product_id"].isin(purchase_history)]
-    else:
-        purchased_df = df.head(0)
+    purchased_df = df[df["product_id"].isin(purchase_history)]
     avg_purchase_price = get_user_avg_price(purchased_df, df)    
-    purchased_categories = set(purchased_df["category_name"]) if "category_name" in purchased_df.columns else set()
-    purchased_names = purchased_df["title"] if "title" in purchased_df.columns else []
+    purchased_categories = set(purchased_df["category_name"])
+    purchased_names = purchased_df["title"]
    
     # --- 3. Combine Both Recommendation Sources ---
     search_recs, purchase_recs = pd.DataFrame(), pd.DataFrame()
-    if search_history:
+    if purchase_history:
         search_recs = from_search_history(df, search_history,weights)
     if purchase_history:
         purchase_recs = from_purchase_history(df, purchased_categories, avg_purchase_price, weights, price_tolerance)
@@ -75,31 +71,23 @@ def home_page_recommendations(user_profile,df):
     combined = pd.concat([search_recs, purchase_recs], ignore_index=True)
     if combined.empty:
         return new_user_home_page_recommendations(user_profile)
-  # Return empty Series if no recommendations
     # Remove already purchased products
     combined = combined[~combined["product_id"].isin(purchase_history)]
     combined = remove_similar_items(combined, purchased_names)
 
     # Remove duplicates by item_number, keep max final_score
-    # Build aggregation dict dynamically and include _id if available
-    agg_dict = {
-        "title": "first",
-        "category_name": "first",
-        "price": "first",
+    combined = combined.groupby("product_id").agg({
+        "Product Name": "first",
+        "Category": "first",
+        "Sale Price": "first",
         "similarity": "max",
         "sustainability_score": "mean",
         "final_score": "max",
-        "Tags": "first",
-    }
-    if "_id" in combined.columns:
-        agg_dict["_id"] = "first"
-    combined = combined.groupby("product_id").agg(agg_dict).reset_index()
+        "Tags": "first"
+    }).reset_index()
 
-    # Sort and return ids (prefer Mongo _id, fallback to product_id)
-    combined = combined.sort_values("final_score", ascending=False)
-    if "_id" in combined.columns:
-        return combined["_id"]
-    return combined["product_id"]
+    # Sort and return top K
+    return combined.sort_values("final_score", ascending=False)["_id"]
 
 def user_home_page_recommendations(user_profile,workable_dataset):
     recommendations = home_page_recommendations(user_profile,workable_dataset)
