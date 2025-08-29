@@ -1,6 +1,14 @@
 # Node
 node_modules/
 package-lock.json
+
+.env
+.venv/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
 yarn.lock
 pnpm-lock.yaml
 .npmrc
@@ -21,7 +29,7 @@ temp/
 # Env and secrets
 .env
 .env.*.local
-*.local.env
+vs*.local.env
 *.env.local
 *.pem
 *.key
@@ -74,3 +82,4 @@ recommendation/.env
 # Keep requirement files tracked
 !recommendation/requirements.txt
 .venv/
+
