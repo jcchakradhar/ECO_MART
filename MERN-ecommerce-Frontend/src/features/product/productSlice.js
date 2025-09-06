@@ -1,13 +1,26 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import {
-  fetchAllProducts,
   fetchProductsByFilters,
   fetchBrands,
   fetchCategories,
   fetchProductById,
   createProduct,
   updateProduct,
+  fetchHomeRecommendationsAPI,
 } from './productAPI';
+// No auth coupling needed for session-cached recommendations
+
+// Hydrate recommendations from sessionStorage (per browser session)
+const loadSessionRecs = () => {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const raw = sessionStorage.getItem('homeRecsV1');
+      if (raw) return JSON.parse(raw);
+    }
+  } catch (e) { }
+  return null;
+};
+const sessionRecs = loadSessionRecs();
 
 const initialState = {
   products: [],
@@ -16,6 +29,10 @@ const initialState = {
   status: 'idle',
   totalItems: 0,
   selectedProduct: null,
+  // recommendations for Home page
+  recommended: Array.isArray(sessionRecs?.data) ? sessionRecs.data : [],
+  recommendedStatus: 'idle',
+  recommendedFetchedForSession: !!(sessionRecs && Array.isArray(sessionRecs.data)),
 };
 
 
@@ -34,6 +51,31 @@ export const fetchProductsByFiltersAsync = createAsyncThunk(
     const response = await fetchProductsByFilters(filter, sort, pagination, admin);
     // The value we return becomes the `fulfilled` action payload
     return response.data;
+  }
+);
+
+// Fetch recommendations once per login session and resolve to product details
+export const fetchHomeRecommendationsAsync = createAsyncThunk(
+  'product/fetchHomeRecommendations',
+  async (_, { rejectWithValue }) => {
+    try {
+      const recResp = await fetchHomeRecommendationsAPI();
+      const ids = Array.isArray(recResp.data) ? recResp.data : [];
+      // Resolve product docs; backend GET /products/:id returns a product
+      const details = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const r = await fetchProductById(id);
+            return r.data;
+          } catch {
+            return null;
+          }
+        })
+      );
+      return details.filter(Boolean);
+    } catch (e) {
+      return rejectWithValue(e?.message || 'failed');
+    }
   }
 );
 
@@ -74,12 +116,13 @@ export const productSlice = createSlice({
   name: 'product',
   initialState,
   reducers: {
-    clearSelectedProduct:(state)=>{
+    clearSelectedProduct: (state) => {
       state.selectedProduct = null
     }
   },
   extraReducers: (builder) => {
     builder
+      // Products list
       .addCase(fetchProductsByFiltersAsync.pending, (state) => {
         state.status = 'loading';
       })
@@ -88,6 +131,28 @@ export const productSlice = createSlice({
         state.products = action.payload.products;
         state.totalItems = action.payload.totalItems;
       })
+      // Home recommendations
+      .addCase(fetchHomeRecommendationsAsync.pending, (state) => {
+        state.recommendedStatus = 'loading';
+        // Prevent duplicate calls during StrictMode double-invoke or quick remounts
+        state.recommendedFetchedForSession = true;
+      })
+      .addCase(fetchHomeRecommendationsAsync.fulfilled, (state, action) => {
+        state.recommendedStatus = 'idle';
+        state.recommended = action.payload || [];
+        state.recommendedFetchedForSession = true;
+        try {
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            sessionStorage.setItem('homeRecsV1', JSON.stringify({ data: state.recommended }));
+          }
+        } catch (e) { }
+      })
+      .addCase(fetchHomeRecommendationsAsync.rejected, (state) => {
+        state.recommendedStatus = 'idle';
+        state.recommended = [];
+        state.recommendedFetchedForSession = true;
+      })
+      // Brands/Categories
       .addCase(fetchBrandsAsync.pending, (state) => {
         state.status = 'loading';
       })
@@ -102,6 +167,7 @@ export const productSlice = createSlice({
         state.status = 'idle';
         state.categories = action.payload;
       })
+      // Product details create/update
       .addCase(fetchProductByIdAsync.pending, (state) => {
         state.status = 'loading';
       })
@@ -121,12 +187,9 @@ export const productSlice = createSlice({
       })
       .addCase(updateProductAsync.fulfilled, (state, action) => {
         state.status = 'idle';
-        const index = state.products.findIndex(
-          (product) => product.id === action.payload.id
-        );
+        const index = state.products.findIndex((product) => product.id === action.payload.id);
         state.products[index] = action.payload;
         state.selectedProduct = action.payload;
-
       });
   },
 });
@@ -140,5 +203,7 @@ export const selectProductById = (state) => state.product.selectedProduct;
 export const selectProductListStatus = (state) => state.product.status;
 
 export const selectTotalItems = (state) => state.product.totalItems;
+export const selectRecommendedProducts = (state) => state.product.recommended;
+export const selectRecommendedFetchedForSession = (state) => state.product.recommendedFetchedForSession;
 
 export default productSlice.reducer;

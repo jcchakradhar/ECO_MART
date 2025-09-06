@@ -1,0 +1,8 @@
+flask
+flask_cors
+pymongo
+pandas
+python-dotenv
+scikit-learn
+spacy
+pyarrow

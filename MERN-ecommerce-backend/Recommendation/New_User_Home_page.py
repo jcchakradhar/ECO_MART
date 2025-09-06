@@ -1,6 +1,6 @@
-from common_code import calculate_product_score, user_profile
+from .common_code import calculate_product_score, user_profile
 import pandas as pd
-from workable_data import workable_dataset
+from .workable_data import workable_dataset
 
 def home_page(df,weights):
     df_products = df.copy()
@@ -10,7 +10,7 @@ def home_page(df,weights):
 
 
 
-def new_user_home_page_recommendations():
+def new_user_home_page_recommendations(user_profile):
     weights = user_profile["weights"]
     recommendations = home_page(workable_dataset, weights)
     return recommendations

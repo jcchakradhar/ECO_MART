@@ -1,4 +1,5 @@
 const { Cart } = require('../model/Cart');
+const { Product } = require('../model/Product');
 
 exports.fetchCartByUser = async (req, res) => {
   const { id } = req.user;
@@ -12,9 +13,14 @@ exports.fetchCartByUser = async (req, res) => {
 };
 
 exports.addToCart = async (req, res) => {
-  const {id} = req.user;
-  const cart = new Cart({...req.body,user:id});
+  const { id } = req.user;
+  const cart = new Cart({ ...req.body, user: id });
   try {
+    // Backfill product_id if not provided (hook will also do it, but this keeps response consistent)
+    if (!cart.product_id && cart.product) {
+      const prod = await Product.findById(cart.product).select('product_id');
+      cart.product_id = prod ? prod.product_id : undefined;
+    }
     const doc = await cart.save();
     const result = await doc.populate('product');
     res.status(201).json(result);
@@ -24,8 +30,8 @@ exports.addToCart = async (req, res) => {
 };
 
 exports.deleteFromCart = async (req, res) => {
-    const { id } = req.params;
-    try {
+  const { id } = req.params;
+  try {
     const doc = await Cart.findByIdAndDelete(id);
     res.status(200).json(doc);
   } catch (err) {
