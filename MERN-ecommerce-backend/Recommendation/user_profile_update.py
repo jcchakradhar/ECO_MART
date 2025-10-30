@@ -1,3 +1,10 @@
+import pandas as pd
+from .workable_data import workable_dataset
+from .common_code import water_grade_to_score, carbon_grade_to_score
+
+action_weight_delta = {"view": 0.01, "add to cart": 0.02, "purchase": 0.05}
+
+
 def update_price_tolerance(user_profile, product_price, avg_price, action_type, min_tol=0.03, max_tol=0.75):
     current_tol = user_profile.get("price_tolerance", 0.2)
     lower_bound = avg_price * (1 - current_tol)
@@ -25,7 +32,7 @@ def update_price_tolerance(user_profile, product_price, avg_price, action_type, 
     return user_profile
 
 
-def update_user_weights(user_profile, avg_price, product_row, action_type):
+def update_user_weights(user_profile, avg_price, product_row, action_type="purchase"):
     delta = action_weight_delta.get(action_type, 0.02)  # default to small shift
     weights = user_profile["weights"]
 
@@ -34,8 +41,8 @@ def update_user_weights(user_profile, avg_price, product_row, action_type):
     weights = {k: v / total_w for k, v in weights.items()}
 
     # Get sustainability scores of product
-    eco_score = carbon_grade_to_score.get(product_row["Eco_Rating"], 0)
-    water_score = water_grade_to_score.get(product_row["Water_Rating"], 0)
+    eco_score = carbon_grade_to_score.get(product_row["Eco_Rating"], 3)
+    water_score = water_grade_to_score.get(product_row["Water_Rating"], 3)
     rating_score = product_row.get("rating", 0) or 0
     product_price = product_row.get("price",0) 
 

@@ -55,13 +55,43 @@ export const fetchProductsByFiltersAsync = createAsyncThunk(
 );
 
 // Fetch recommendations once per login session and resolve to product details
+// export const fetchHomeRecommendationsAsync = createAsyncThunk(
+//   'product/fetchHomeRecommendations',
+//   async (_, { rejectWithValue }) => {
+//     try {
+//       const recResp = await fetchHomeRecommendationsAPI();
+//       const ids = Array.isArray(recResp.data) ? recResp.data : [];
+//       // Resolve product docs; backend GET /products/:id returns a product
+//       const details = await Promise.all(
+//         ids.map(async (id) => {
+//           try {
+//             const r = await fetchProductById(id);
+//             return r.data;
+//           } catch {
+//             return null;
+//           }
+//         })
+//       );
+//       return details.filter(Boolean);
+//     } catch (e) {
+//       return rejectWithValue(e?.message || 'failed');
+//     }
+//   }
+// );
+// ...existing code...
 export const fetchHomeRecommendationsAsync = createAsyncThunk(
   'product/fetchHomeRecommendations',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const recResp = await fetchHomeRecommendationsAPI();
+      const state = getState();
+      const userId =
+        state.auth?.user?._id ||
+        state.user?.currentUser?._id ||
+        state.session?.user?._id ||
+        null;
+
+      const recResp = await fetchHomeRecommendationsAPI(userId);
       const ids = Array.isArray(recResp.data) ? recResp.data : [];
-      // Resolve product docs; backend GET /products/:id returns a product
       const details = await Promise.all(
         ids.map(async (id) => {
           try {
@@ -78,6 +108,7 @@ export const fetchHomeRecommendationsAsync = createAsyncThunk(
     }
   }
 );
+// ...existing code...
 
 export const fetchBrandsAsync = createAsyncThunk(
   'product/fetchBrands',

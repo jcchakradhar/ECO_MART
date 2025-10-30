@@ -9,7 +9,6 @@ import os
 import time
 
 app = Flask(__name__)
-
 load_dotenv()
 
 profile = {}
@@ -19,45 +18,30 @@ client = MongoClient(mongo_uri)
 db2 = client["test"]
 collection = db2["users"]
 
-# def get_user_data(user_id):
-#     try:
-#         user = collection.find_one({"_id": ObjectId(user_id)})
-#     except Exception as e:
-#         print("Invalid user_id:", e)
-#         return None
-#     if user is None:
-#         print("User not found!")
-#         return None
-#     user["_id"] = str(user["_id"])  # Convert ObjectId to string for JSON
-#     return user
-
 user_cache = {}
 user_cache_time = {}
-
 CACHE_TTL = 30  # seconds
 
 def get_user_data(user_id):
     now = time.time()
-    # Check if user is cached and not expired
     if user_id in user_cache and now - user_cache_time[user_id] < CACHE_TTL:
         return user_cache[user_id]
-    # Otherwise, fetch from DB
+
     try:
         user = collection.find_one({"_id": ObjectId(user_id)})
-    except Exception as e:
-        print("Invalid user_id:", e)
+    except Exception:
         return None
-    if user is None:
-        print("User not found!")
+
+    if not user:
         return None
+
     user["_id"] = str(user["_id"])
-    # Cache the result
     user_cache[user_id] = user
     user_cache_time[user_id] = now
     return user
 
+
 def _to_jsonable(value):
-    """Recursively convert Mongo/BSON types to JSON-serializable values."""
     if isinstance(value, dict):
         return {k: _to_jsonable(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -74,43 +58,81 @@ def _to_jsonable(value):
         except Exception:
             return base64.b64encode(value).decode("ascii")
     return value
-bp=Blueprint("user", __name__)
+
+
+bp = Blueprint("user", __name__)
+
+ 
 @bp.route('/api/user/me', methods=['GET'])
-def get_current_user():
-    # Example: get user_id from request header (adjust as needed for your auth)
-    # user_id = request.headers.get("X-User-Id")
-    # if not user_id:
-    #     return jsonify({"error": "No user_id provided"}), 400
-    # user = get_user_data(user_id)
-    # # update module-level profile for use by other modules
-    # global profile
-    # profile = user or {}
-    # if not user:
-    #     return jsonify({"error": "User not found"}), 404
-    # return jsonify(user)
-    try:
-        # Example: get user_id from request header (adjust as needed for your auth)
+def get_current_user(user_id=None):
+    """Fetch current user data from header or explicit user_id."""
+    global profile
+
+    if user_id is None:
         user_id = request.headers.get("X-User-Id")
-        if not user_id:
-            return jsonify({"error": "No user_id provided"}), 400
-        user = get_user_data(user_id)
+
+    if not user_id:
+        return jsonify({"error": "Missing X-User-Id header"}), 400
+
+    try:
+        print("=== DEBUG → get_current_user ===")
+        print("Incoming user_id:", user_id, "| type:", type(user_id))
+
+        user = None
+
+        # Try ObjectId conversion
+        try:
+            obj_id = ObjectId(user_id)
+            print("Converted user_id to ObjectId:", obj_id)
+            user = collection.find_one({"_id": obj_id})
+            print("Query result by ObjectId:", user)
+        except Exception as e:
+            print("Invalid ObjectId:", e)
+
+        # Try string or email fallback
         if not user:
+            print("Trying fallback lookups ...")
+            user = collection.find_one({"_id": user_id})
+            print("Query result by string _id:", user)
+            if not user:
+                user = collection.find_one({"email": user_id})
+                print("Query result by email:", user)
+
+        # Final decision
+        if not user:
+            print(">>> USER NOT FOUND in DB for:", user_id)
             return jsonify({"error": "User not found"}), 404
-        # update module-level profile with sanitized data and return
-        global profile
-        profile = _to_jsonable(user)
-        return jsonify(profile)
+
+        # Convert for JSON response
+        user["_id"] = str(user["_id"])
+        profile = _to_jsonable(dict(user))
+
+        print(">>> USER FOUND:", profile.get("_id"))
+        return jsonify(profile), 200
+
     except Exception as e:
-        # Surface details in development to diagnose 500s
-        return jsonify({"error": "internal", "message": str(e)}), 500
+        print("get_current_user error:", traceback.format_exc())
+        return jsonify({"error": "Internal error", "message": str(e)}), 500
+
+
 
 @bp.route('/api/user/ping', methods=['GET'])
 def user_ping():
     return jsonify({"ok": True, "header_user_id": request.headers.get("X-User-Id")})
 
+
 @bp.route('/api/user/profile-debug', methods=['GET'])
 def profile_debug():
-    return jsonify(_to_jsonable(profile))
+    user_id = request.headers.get("X-User-Id")
+    if not user_id:
+        return jsonify({"error": "Missing X-User-Id header"}), 400
+
+    resp, status_code = get_current_user(user_id)
+    if status_code != 200:
+        return resp
+
+    return resp
+
 
 @bp.route('/api/user/sample-id', methods=['GET'])
 def sample_user_id():
@@ -121,12 +143,8 @@ def sample_user_id():
         return jsonify({"_id": str(doc["_id"])})
     except Exception as e:
         return jsonify({"error": "internal", "message": str(e)}), 500
-# Example usage (for testing, not for production)
+
+
 if __name__ == "__main__":
-    # Register the blueprint first
-
-    # Print all routes
-    print(app.url_map)
-
-    # Run the Flask app
+    app.register_blueprint(bp)
     app.run(debug=True)

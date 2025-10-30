@@ -1,5 +1,6 @@
 import random
 import pandas as pd
+from .common_code import water_grade_to_score, carbon_grade_to_score
 
 def calculate_sustainability_metrics(
     purchased_product, df_products, group_delivery=False
@@ -62,6 +63,8 @@ def calculate_sustainability_metrics(
         "message": message,
     }
 
-
-result = calculate_sustainability_metrics(purchased_product, df_products, group_delivery=True)
-print(result)
+def calculate_score(purchased_product, df_products, group_delivery=False):
+    metrics = calculate_sustainability_metrics(purchased_product, df_products, group_delivery)
+    return metrics
+# calculate_sustainability_metrics(purchased_product, df_products, group_delivery=True)
+# print(result)
