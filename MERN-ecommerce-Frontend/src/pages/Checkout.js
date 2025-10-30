@@ -7,7 +7,7 @@ import {
 } from '../features/cart/cartSlice';
 import { useForm } from 'react-hook-form';
 import { updateUserAsync } from '../features/user/userSlice';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   createOrderAsync,
   selectCurrentOrder,
@@ -56,8 +56,44 @@ function Checkout() {
   const totalItems = items.reduce((total, item) => item.quantity + total, 0);
 
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [selectedAddressIndex, setSelectedAddressIndex] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [qtyDrafts, setQtyDrafts] = useState({});
+
+  // Persist/restore last used address index and payment method per user
+  const prefsKey = user?.id ? `checkoutPref:${user.id}` : null;
+
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const raw = prefsKey ? localStorage.getItem(prefsKey) : null;
+      const saved = raw ? JSON.parse(raw) : null;
+      let idx = typeof saved?.addressIndex === 'number' ? saved.addressIndex : null;
+      const pay = typeof saved?.paymentMethod === 'string' ? saved.paymentMethod : null;
+      // Fallback to first address if saved index is invalid
+      if ((idx === null || idx < 0 || idx >= (user.addresses?.length || 0)) && (user.addresses?.length || 0) > 0) {
+        idx = 0;
+      }
+      if (idx !== null) {
+        setSelectedAddressIndex(idx);
+        setSelectedAddress(user.addresses[idx]);
+      }
+      if (pay) setPaymentMethod(pay);
+    } catch {
+      // ignore JSON errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const persistPrefs = (idx, method) => {
+    if (!prefsKey) return;
+    try {
+      localStorage.setItem(
+        prefsKey,
+        JSON.stringify({ addressIndex: typeof idx === 'number' ? idx : selectedAddressIndex, paymentMethod: method ?? paymentMethod })
+      );
+    } catch { }
+  };
 
   // Rating badge gradients (A+ -> D)
   const gradeToEcoGradient = (g) => {
@@ -130,15 +166,22 @@ function Checkout() {
   };
 
   const handleAddress = (e) => {
-    setSelectedAddress(user.addresses[e.target.value]);
+    const idx = Number(e.target.value);
+    setSelectedAddressIndex(idx);
+    setSelectedAddress(user.addresses[idx]);
+    persistPrefs(idx, undefined);
   };
 
   const handlePayment = (e) => {
-    setPaymentMethod(e.target.value);
+    const method = e.target.value;
+    setPaymentMethod(method);
+    persistPrefs(undefined, method);
   };
 
   const handleOrder = (e) => {
     if (selectedAddress && paymentMethod) {
+      // persist choices
+      persistPrefs(selectedAddressIndex, paymentMethod);
       const normalizedItems = items.map((it) => ({
         product: it.product,
         quantity: it.quantity,
@@ -319,6 +362,7 @@ function Checkout() {
                           name="address"
                           type="radio"
                           value={index}
+                          checked={selectedAddressIndex === index}
                           className="h-4 w-4 border-emerald-300 text-emerald-600 focus:ring-emerald-600"
                         />
                         <div>

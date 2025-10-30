@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   deleteItemFromCartAsync,
@@ -10,16 +10,10 @@ import {
 import { Link } from 'react-router-dom';
 import { Grid } from 'react-loader-spinner';
 import Modal from '../common/Modal';
-import {
-  TrashIcon,
-  ShoppingBagIcon,
-  ArrowLeftIcon,
-  CheckCircleIcon,
-  TruckIcon,
-  ShieldCheckIcon
-} from '@heroicons/react/24/outline';
+import { TrashIcon, ShoppingBagIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import RatingBadge from '../common/RatingBadge';
-import { fetchProductsByFilters } from '../product/productAPI';
+import axios from 'axios';
+import { ArrowsRightLeftIcon } from '@heroicons/react/24/solid';
 import ProductCard from '../product/components/ProductCard';
 
 export default function Cart() {
@@ -31,70 +25,57 @@ export default function Cart() {
   const [qtyDrafts, setQtyDrafts] = useState({});
   const isEmpty = cartLoaded && items.length === 0;
 
-  // Related products state grouped by brand
-  const [relatedByBrand, setRelatedByBrand] = useState({}); // brand -> products[]
-  const [loadingBrand, setLoadingBrand] = useState({}); // brand -> boolean
+  // Per-item recommendations fetched from Flask by cart item's product_id
+  const recsByItemIdRef = useRef({}); // itemId -> Product[]
+  const [recsByItemId, setRecsByItemId] = useState({}); // trigger re-render
+  const [recsLoading, setRecsLoading] = useState({}); // itemId -> boolean
 
-  const normalizeBrand = (b) => String(b || '').trim();
+  // Set of product ids already in cart to avoid recommending exact same items
+  const cartProductIds = useMemo(
+    () => new Set((items || []).map((it) => it?.product?.id).filter(Boolean)),
+    [items]
+  );
 
-  // Collect unique, valid brands from items
-  const brandsInCart = useMemo(() => {
-    const set = new Set();
-    for (const it of items || []) {
-      const b = normalizeBrand(it?.product?.brand);
-      if (b) set.add(b);
+  const fetchRecsForItem = async (item) => {
+    if (!item?.id || !item?.product_id) return;
+    const itemId = item.id;
+    if (recsByItemIdRef.current[itemId] || recsLoading[itemId]) return;
+    try {
+      setRecsLoading((s) => ({ ...s, [itemId]: true }));
+      const url = new URL('http://localhost:5001/api/recommendations/cart');
+      url.search = new URLSearchParams({ product_id: String(item.product_id) }).toString();
+      const resp = await fetch(url.toString(), { method: 'GET' });
+      const idList = await resp.json().catch(() => []);
+      const ids = Array.isArray(idList) ? idList : [];
+      // Resolve product documents via our backend
+      const details = await Promise.all(
+        ids.map(async (pid) => {
+          try {
+            const r = await axios.get(`/products/${pid}`);
+            return r.data;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const products = details
+        .filter(Boolean)
+        .filter((p) => !cartProductIds.has(p?.id))
+        .slice(0, 10);
+      recsByItemIdRef.current[itemId] = products;
+      setRecsByItemId((m) => ({ ...m, [itemId]: products }));
+    } catch (e) {
+      // swallow
+    } finally {
+      setRecsLoading((s) => ({ ...s, [itemId]: false }));
     }
-    return Array.from(set);
-  }, [items]);
+  };
 
-  // Map of brand -> Set(productIds) currently in cart (to exclude from suggestions)
-  const cartIdsByBrand = useMemo(() => {
-    const map = new Map();
-    for (const it of items || []) {
-      const b = normalizeBrand(it?.product?.brand);
-      const pid = it?.product?.id;
-      if (!b || !pid) continue;
-      if (!map.has(b)) map.set(b, new Set());
-      map.get(b).add(pid);
-    }
-    return map;
-  }, [items]);
-
-  // Fetch related products per brand (up to 10)
+  // Kick off fetch for each item once
   useEffect(() => {
-    let cancelled = false;
-    async function loadBrand(brandRaw) {
-      const brand = normalizeBrand(brandRaw);
-      try {
-        setLoadingBrand((s) => ({ ...s, [brand]: true }));
-        const { data } = await fetchProductsByFilters(
-          { brand: [brand] },
-          {},
-          { _page: 1, _limit: 12 }, // fetch a few extra; we'll filter out current items then cap to 10
-          false
-        );
-        const products = data?.products || [];
-        if (!cancelled) {
-          setRelatedByBrand((m) => ({ ...m, [brand]: products }));
-        }
-      } catch (e) {
-        // no-op
-      } finally {
-        // Always clear loading to avoid stuck spinner even if effect re-ran
-        setLoadingBrand((s) => ({ ...s, [brand]: false }));
-      }
-    }
-
-    for (const brandRaw of brandsInCart) {
-      const brand = normalizeBrand(brandRaw);
-      if (brand && !relatedByBrand[brand] && !loadingBrand[brand]) {
-        loadBrand(brand);
-      }
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [brandsInCart]);
+    (items || []).forEach((it) => fetchRecsForItem(it));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   // Helpers to normalize prices and formatting
   const parseMoney = (v) => {
@@ -105,7 +86,7 @@ export default function Cart() {
   const getUnitPrice = (product) => {
     const discount = parseMoney(product?.discountPrice);
     const price = parseMoney(product?.price);
-    return (discount ?? price ?? 0);
+    return discount ?? price ?? 0;
   };
   const getOriginalPrice = (product) => {
     const price = parseMoney(product?.price);
@@ -128,9 +109,6 @@ export default function Cart() {
   }, 0);
   const totalSavings = totalOriginalPrice - totalAmount;
 
-  const handleQuantity = (e, item) => {
-    dispatch(updateCartAsync({ id: item.id, quantity: +e.target.value }));
-  };
   const commitQuantity = (item, nextQty) => {
     const qty = Math.max(1, Number.parseInt(nextQty, 10) || 1);
     setQtyDrafts((prev) => ({ ...prev, [item.id]: qty }));
@@ -165,39 +143,20 @@ export default function Cart() {
     dispatch(deleteItemFromCartAsync(id));
   };
 
-  // Rating badge gradients (A+ -> D)
-  const gradeToEcoGradient = (g) => {
-    const grade = String(g || '').toUpperCase().trim();
-    switch (grade) {
-      case 'A+':
-        return 'from-emerald-600 to-green-700';
-      case 'A':
-        return 'from-emerald-500 to-green-600';
-      case 'B':
-        return 'from-lime-500 to-lime-600';
-      case 'C':
-        return 'from-amber-500 to-orange-600';
-      case 'D':
-        return 'from-red-500 to-red-600';
-      default:
-        return 'from-slate-400 to-slate-500';
-    }
-  };
-  const gradeToWaterGradient = (g) => {
-    const grade = String(g || '').toUpperCase().trim();
-    switch (grade) {
-      case 'A+':
-        return 'from-blue-700 to-sky-700';
-      case 'A':
-        return 'from-blue-600 to-sky-600';
-      case 'B':
-        return 'from-sky-600 to-blue-600';
-      case 'C':
-        return 'from-sky-500 to-blue-500';
-      case 'D':
-        return 'from-sky-400 to-blue-400';
-      default:
-        return 'from-slate-400 to-slate-500';
+  // Replace flow state
+  const [replacing, setReplacing] = useState({}); // itemId -> bool
+
+  const handleReplaceCartItem = async (item, recProduct) => {
+    try {
+      if (!item?.id || !recProduct?.id) return;
+      setReplacing((m) => ({ ...m, [item.id]: true }));
+      // Replace in place: update the existing cart line's product to the recommended product
+      await dispatch(updateCartAsync({ id: item.id, product: recProduct.id }));
+      // Clear recommendations for this line
+      recsByItemIdRef.current[item.id] = [];
+      setRecsByItemId((m) => ({ ...m, [item.id]: [] }));
+    } finally {
+      setReplacing((m) => ({ ...m, [item.id]: false }));
     }
   };
 
@@ -218,9 +177,7 @@ export default function Cart() {
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-800 to-teal-600 bg-clip-text text-transparent">
                   Your Eco Cart
                 </h1>
-                <p className="mt-2 text-emerald-700">
-                  🌱 {totalItems} sustainable items ready for checkout
-                </p>
+                <p className="mt-2 text-emerald-700">🌱 {totalItems} sustainable items ready for checkout</p>
               </div>
               <div className="hidden sm:block">
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl px-6 py-4 border border-emerald-200/30 shadow-lg">
@@ -238,20 +195,11 @@ export default function Cart() {
 
           <div className="lg:grid lg:grid-cols-12 lg:gap-x-12 lg:items-start">
             {/* Cart Items */}
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-9">
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-emerald-200/30 p-6">
                 {status === 'loading' || !cartLoaded ? (
                   <div className="flex justify-center items-center py-20">
-                    <Grid
-                      height="80"
-                      width="80"
-                      color="rgb(16, 185, 129)"
-                      ariaLabel="grid-loading"
-                      radius="12.5"
-                      wrapperStyle={{}}
-                      wrapperClass=""
-                      visible={true}
-                    />
+                    <Grid height="80" width="80" color="rgb(16, 185, 129)" ariaLabel="grid-loading" radius="12.5" visible />
                   </div>
                 ) : isEmpty ? (
                   <div className="text-center py-16">
@@ -311,9 +259,7 @@ export default function Cart() {
                                       {item.product.title}
                                     </Link>
                                   </h3>
-                                  <p className="text-sm text-emerald-600 font-medium mb-2">
-                                    by {item.product.brand}
-                                  </p>
+                                  <p className="text-sm text-emerald-600 font-medium mb-2">by {item.product.brand}</p>
                                   <div className="flex items-center space-x-4 mb-4">
                                     <div className="flex items-center space-x-2">
                                       {(() => {
@@ -326,9 +272,7 @@ export default function Cart() {
                                               ${formatMoney(unit)}
                                             </span>
                                             {showStrike && (
-                                              <span className="text-sm text-gray-400 line-through">
-                                                ${formatMoney(orig)}
-                                              </span>
+                                              <span className="text-sm text-gray-400 line-through">${formatMoney(orig)}</span>
                                             )}
                                           </>
                                         );
@@ -342,9 +286,13 @@ export default function Cart() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-4">
                                   <div className="flex items-center space-x-2">
-                                    <label htmlFor={`quantity-${item.id}`} className="text-sm font-medium text-emerald-800">Qty:</label>
+                                    <label htmlFor={`quantity-${item.id}`} className="text-sm font-medium text-emerald-800">
+                                      Qty:
+                                    </label>
                                     <div className="flex items-center border border-emerald-200 rounded-lg overflow-hidden bg-white/70">
-                                      <button type="button" onClick={() => decQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">-</button>
+                                      <button type="button" onClick={() => decQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">
+                                        -
+                                      </button>
                                       <input
                                         id={`quantity-${item.id}`}
                                         inputMode="numeric"
@@ -355,7 +303,9 @@ export default function Cart() {
                                         onKeyDown={(e) => onQtyKeyDown(e, item)}
                                         className="w-12 text-center px-1 py-1 text-sm focus:outline-none"
                                       />
-                                      <button type="button" onClick={() => incQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">+</button>
+                                      <button type="button" onClick={() => incQty(item)} className="px-1 py-1 text-emerald-700 hover:bg-emerald-50">
+                                        +
+                                      </button>
                                     </div>
                                   </div>
                                   <div className="text-sm text-emerald-700">
@@ -364,7 +314,9 @@ export default function Cart() {
                                       const qty = Number(item.quantity) || 0;
                                       const sub = unit * qty;
                                       return (
-                                        <>Subtotal: <span className="font-semibold">${formatMoney(sub)}</span></>
+                                        <>
+                                          Subtotal: <span className="font-semibold">${formatMoney(sub)}</span>
+                                        </>
                                       );
                                     })()}
                                   </div>
@@ -392,37 +344,40 @@ export default function Cart() {
                             showModal={openModal === item.id}
                           />
 
-                          {/* Related products by brand */}
-                          {normalizeBrand(item?.product?.brand) && (
-                            <div className="mt-6">
-                              <div className="flex items-center justify-between mb-3">
-                                <h4 className="text-sm font-semibold text-emerald-900">
-                                  More from {normalizeBrand(item.product.brand)}
-                                </h4>
-                                {loadingBrand[normalizeBrand(item.product.brand)] && (
-                                  <span className="text-xs text-emerald-600">Loading…</span>
+                          {/* Recommendations for this item (from Flask by product_id) */}
+                          <div className="mt-6">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-semibold text-emerald-900">Recommended for this item</h4>
+                              {recsLoading[item.id] && <span className="text-xs text-emerald-600">Loading…</span>}
+                              {replacing[item.id] && <span className="text-xs text-emerald-600">Replacing…</span>}
+                            </div>
+                            <div className="overflow-x-auto">
+                              <div className="flex gap-4 pb-2">
+                                {(recsByItemId[item.id] || []).map((p) => (
+                                  <div key={p.id} className="w-44 flex-shrink-0 relative group">
+                                    <ProductCard product={p} />
+                                    {/* Replace button overlay */}
+                                    <button
+                                      type="button"
+                                      title="Replace this cart item with this product"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleReplaceCartItem(item, p);
+                                      }}
+                                      disabled={!!replacing[item.id]}
+                                      className="absolute top-1 right-1 p-1 rounded-md bg-white/90 text-emerald-700 border border-emerald-200 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-50"
+                                    >
+                                      <ArrowsRightLeftIcon className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                                {(!recsByItemId[item.id] || (recsByItemId[item.id] || []).length === 0) && !recsLoading[item.id] && (
+                                  <div className="text-sm text-emerald-700">No recommendations found.</div>
                                 )}
                               </div>
-                              <div className="overflow-x-auto">
-                                <div className="flex gap-4 pb-2">
-                                  {(relatedByBrand[normalizeBrand(item.product.brand)] || [])
-                                    .filter((p) => {
-                                      const set = cartIdsByBrand.get(normalizeBrand(item.product.brand));
-                                      return !set || !set.has(p?.id);
-                                    })
-                                    .slice(0, 10)
-                                    .map((p) => (
-                                      <div key={p.id} className="w-44 flex-shrink-0">
-                                        <ProductCard product={p} />
-                                      </div>
-                                    ))}
-                                  {(!relatedByBrand[normalizeBrand(item.product.brand)] || (relatedByBrand[normalizeBrand(item.product.brand)] || []).length === 0) && !loadingBrand[normalizeBrand(item.product.brand)] && (
-                                    <div className="text-sm text-emerald-700">No related products found.</div>
-                                  )}
-                                </div>
-                              </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       );
                     })}
@@ -432,7 +387,7 @@ export default function Cart() {
             </div>
 
             {/* Order Summary */}
-            <div className="lg:col-span-5 mt-8 lg:mt-0">
+            <div className="lg:col-span-3 mt-8 lg:mt-0">
               <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-emerald-200/30 p-6 sticky top-6">
                 <h2 className="text-xl font-bold text-emerald-900 mb-6">Order Summary</h2>
 
@@ -465,40 +420,17 @@ export default function Cart() {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center mb-6 text-emerald-700">
-                    Your cart is currently empty.
-                  </div>
-                )}
-
-                {/* Benefits */}
-                {!isEmpty && (
-                  <div className="bg-emerald-50 rounded-xl p-4 mb-6">
-                    <h3 className="text-sm font-semibold text-emerald-800 mb-3">Your Impact</h3>
-                    <div className="space-y-2 text-xs text-emerald-700">
-                      <div className="flex items-center">
-                        <CheckCircleIcon className="h-4 w-4 text-emerald-600 mr-2" />
-                        Carbon-conscious shopping choices
-                      </div>
-                      <div className="flex items-center">
-                        <TruckIcon className="h-4 w-4 text-emerald-600 mr-2" />
-                        Free eco-friendly shipping
-                      </div>
-                      <div className="flex items-center">
-                        <ShieldCheckIcon className="h-4 w-4 text-emerald-600 mr-2" />
-                        30-day sustainable return policy
-                      </div>
-                    </div>
-                  </div>
+                  <div className="text-center mb-6 text-emerald-700">Your cart is currently empty.</div>
                 )}
 
                 {/* Checkout Button or Browse CTA */}
                 {!isEmpty ? (
                   <Link
                     to="/checkout"
-                    className="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                    className="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl text-sm md:text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
                   >
                     <ShoppingBagIcon className="h-5 w-5 mr-2" />
-                    Proceed to Checkout
+                    Checkout
                   </Link>
                 ) : (
                   <Link

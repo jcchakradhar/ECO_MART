@@ -84,3 +84,57 @@ export function fetchBrands() {
     resolve({ data });
   });
 }
+
+// Fetch recommended product IDs for the Home page from the Python recommendations service
+// export function fetchHomeRecommendationsAPI() {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       const response = await fetch('http://127.0.0.1:5001/api/recommendations/home', {
+//         method: 'GET',
+//         headers:{
+//           "Content-Type": "application/json",
+//           "X-User-Id": userId
+//         },  
+//         credentials: 'include',
+//       });
+//       // Allow non-200s to be handled as empty gracefully
+//       const data = await response.json().catch(() => []);
+//       resolve({ data });
+//     } catch (err) {
+//       resolve({ data: [] });
+//     }
+//   });
+// }
+export function fetchHomeRecommendationsAPI(userId) {
+  return new Promise(async (resolve) => {
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (userId) headers["X-User-Id"] = userId;
+
+      const response = await fetch('http://127.0.0.1:5001/api/recommendations/home', {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => []);
+      resolve({ data });
+    } catch {
+      resolve({ data: [] });
+    }
+  });
+}
+
+// Fetch recommended product IDs for search queries from the Python recommendations service
+export function fetchSearchRecommendationsAPI(query) {
+  return new Promise(async (resolve) => {
+    try {
+      const url = new URL('http://127.0.0.1:5001/api/recommendations/search');
+      url.search = new URLSearchParams({ query }).toString();
+      const response = await fetch(url.toString(), { method: 'GET' });
+      const data = await response.json().catch(() => []);
+      resolve({ data });
+    } catch (err) {
+      resolve({ data: [] });
+    }
+  });
+}

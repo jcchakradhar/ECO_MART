@@ -243,7 +243,7 @@ def cart_alternatives(profile, product_id, df, top_k=10):
         return []
 
     # Profile defaults
-    weights = (profile or {}).get("weights", {}) if isinstance(profile, dict) else {}
+    weights = (profile or {}).get("weights", {})  
     price_tolerance = float((profile or {}).get("price_tolerance", 0.2))
 
     # Compute sustainability score

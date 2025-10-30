@@ -316,9 +316,8 @@ export default function Signup() {
               <div className="flex items-start">
                 <input
                   id="terms"
-                  name="terms"
                   type="checkbox"
-                  required
+                  {...register('terms', { required: 'Please agree to the terms and privacy policy' })}
                   className="h-4 w-4 mt-0.5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
                 />
                 <label htmlFor="terms" className="ml-3 text-sm text-emerald-700">
@@ -332,6 +331,12 @@ export default function Signup() {
                   </Link>
                 </label>
               </div>
+              {errors.terms && (
+                <p className="-mt-2 mb-2 text-sm text-red-600 flex items-center">
+                  <XCircleIcon className="h-4 w-4 mr-1" />
+                  {errors.terms.message}
+                </p>
+              )}
 
               {/* Signup Button */}
               <div>

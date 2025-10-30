@@ -7,6 +7,8 @@ import Pagination from '../features/common/Pagination';
 import ProductCard from '../features/product/components/ProductCard';
 import { Menu, Transition } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { useDispatch, useSelector } from 'react-redux';
+import { selectUserInfo, updateUserAsync } from '../features/user/userSlice';
 
 const sortFieldOptions = [
   { name: 'Rating', value: 'rating' },
@@ -32,6 +34,8 @@ const SearchResults = () => {
     pagination,
     searchProducts
   } = useSearch();
+  const dispatch = useDispatch();
+  const userInfo = useSelector(selectUserInfo);
 
   // 2. Get the search params from the URL
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,10 +53,29 @@ const SearchResults = () => {
     if (!query) return;
     const p = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
     setPage(p);
-    const s = sortParam && orderParam ? { _sort: sortParam, _order: orderParam } : {};
+    const s = sortParam && orderParam ? { _sort: sortParam, _order: orderParam } : { _sort: 'rating', _order: 'desc' };
     setSort(s);
     searchProducts(query, p, s);
   }, [query, pageParam, sortParam, orderParam]);
+
+  // Persist search term to user's searchHistory (dedup, cap 10) once per session per query
+  useEffect(() => {
+    if (!query || !userInfo?.id) return;
+    try {
+      const normalized = query.trim().toLowerCase();
+      const sessionKey = `searchHistorySynced:${userInfo.id}:${normalized}`;
+      if (sessionStorage.getItem(sessionKey)) return;
+
+      const existing = Array.isArray(userInfo.searchHistory) ? userInfo.searchHistory : [];
+      const next = [query, ...existing.filter((q) => typeof q === 'string' && q.toLowerCase() !== normalized)];
+      const capped = next.slice(0, 10);
+
+      dispatch(updateUserAsync({ id: userInfo.id, searchHistory: capped }));
+      sessionStorage.setItem(sessionKey, '1');
+    } catch (_) {
+      // no-op on storage errors
+    }
+  }, [dispatch, query, userInfo?.id]);
 
   const handlePageChange = (nextPage) => {
     if (!query) return;

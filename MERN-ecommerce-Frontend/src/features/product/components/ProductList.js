@@ -5,6 +5,7 @@ import {
   selectAllProducts,
   selectProductListStatus,
   selectTotalItems,
+  selectRecommendedProducts,
 } from '../productSlice';
 import { Menu, Transition } from '@headlessui/react';
 import { useSearchParams } from 'react-router-dom';
@@ -73,6 +74,7 @@ export default function ProductList() {
   const products = useSelector(selectAllProducts);
   const totalItems = useSelector(selectTotalItems);
   const status = useSelector(selectProductListStatus);
+  const recommended = useSelector(selectRecommendedProducts);
   // Filters removed: we no longer use categories/brands in the UI
   const [sort, setSort] = useState({});
   const [searchParams, setSearchParams] = useSearchParams();
@@ -117,10 +119,11 @@ export default function ProductList() {
   };
 
   useEffect(() => {
+    // If recommendations are present, show them and skip generic fetch for this render
+    if (recommended && recommended.length > 0) return;
     const pagination = { _page: page, _limit: ITEMS_PER_PAGE };
-    // Send empty filter since filters UI is removed
     dispatch(fetchProductsByFiltersAsync({ filter: {}, sort, pagination }));
-  }, [dispatch, sort, page]);
+  }, [dispatch, sort, page, recommended]);
 
   useEffect(() => {
     // If sort changes, keep current page in URL; optionally reset if needed.
@@ -142,10 +145,10 @@ export default function ProductList() {
           <div className="flex items-center justify-between bg-white border-b border-gray-200 py-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                All Products
+                {recommended && recommended.length > 0 ? 'Recommended for you' : 'All Products'}
               </h2>
               <p className="text-sm text-gray-600">
-                {totalItems} results
+                {recommended && recommended.length > 0 ? recommended.length : totalItems} results
               </p>
             </div>
 
@@ -231,19 +234,21 @@ export default function ProductList() {
 
             {/* Product grid only (no sidebar filters) */}
             <div className="">
-              <ProductGrid products={products} status={status} page={page} />
+              <ProductGrid products={(recommended && recommended.length > 0) ? recommended : products} status={status} page={page} />
             </div>
           </section>
 
           {/* Pagination */}
-          <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-            <Pagination
-              page={page}
-              setPage={setPage}
-              handlePage={handlePage}
-              totalItems={totalItems}
-            />
-          </div>
+          {(!(recommended && recommended.length > 0)) && (
+            <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+              <Pagination
+                page={page}
+                setPage={setPage}
+                handlePage={handlePage}
+                totalItems={totalItems}
+              />
+            </div>
+          )}
         </main>
       </div>
     </div>
