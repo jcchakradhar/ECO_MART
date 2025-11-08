@@ -3,6 +3,7 @@ const path = require('path');
 const { User } = require('../model/User');
 const { Order } = require('../model/Order');
 const { Product } = require('../model/Product');
+const mongoose = require('mongoose');
 
 function gradeToScore(grade) {
     if (!grade || typeof grade !== 'string') return 0;
@@ -29,9 +30,36 @@ exports.generateMotivation = async (req, res) => {
 
         let purchase_history = [];
         if (Array.isArray(user?.purchase_history) && user.purchase_history.length) {
-            const prods = await Product.find({ _id: { $in: user.purchase_history.slice(-5) } })
-                .select('title product_id brand')
-                .lean();
+            const recentHistory = user.purchase_history.slice(-5).filter(Boolean);
+            const objectIdCandidates = [];
+            const productIdCandidates = [];
+
+            for (const entry of recentHistory) {
+                const value = typeof entry === 'object' && entry !== null ? entry._id || entry.id || entry : entry;
+                if (!value) continue;
+                const strValue = String(value);
+                if (mongoose.Types.ObjectId.isValid(strValue) && strValue.length === 24) {
+                    objectIdCandidates.push(new mongoose.Types.ObjectId(strValue));
+                } else {
+                    productIdCandidates.push(strValue);
+                }
+            }
+
+            const filters = [];
+            if (objectIdCandidates.length) {
+                filters.push({ _id: { $in: objectIdCandidates } });
+            }
+            if (productIdCandidates.length) {
+                filters.push({ product_id: { $in: productIdCandidates } });
+            }
+
+            let prods = [];
+            if (filters.length === 1) {
+                prods = await Product.find(filters[0]).select('title product_id brand').lean();
+            } else if (filters.length > 1) {
+                prods = await Product.find({ $or: filters }).select('title product_id brand').lean();
+            }
+
             purchase_history = prods.map((p) => p?.title || p?.product_id || p?.brand || 'product');
         } else if (Array.isArray(orders)) {
             for (const order of orders) {

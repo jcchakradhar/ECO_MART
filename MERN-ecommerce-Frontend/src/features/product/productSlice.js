@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { ITEMS_PER_PAGE } from '../../app/constants';
 import {
   fetchProductsByFilters,
   fetchBrands,
@@ -8,19 +9,8 @@ import {
   updateProduct,
   fetchHomeRecommendationsAPI,
 } from './productAPI';
-// No auth coupling needed for session-cached recommendations
 
-// Hydrate recommendations from sessionStorage (per browser session)
-const loadSessionRecs = () => {
-  try {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      const raw = sessionStorage.getItem('homeRecsV1');
-      if (raw) return JSON.parse(raw);
-    }
-  } catch (e) { }
-  return null;
-};
-const sessionRecs = loadSessionRecs();
+const RECOMMENDATION_MAX_PAGES = 5;
 
 const initialState = {
   products: [],
@@ -30,9 +20,11 @@ const initialState = {
   totalItems: 0,
   selectedProduct: null,
   // recommendations for Home page
-  recommended: Array.isArray(sessionRecs?.data) ? sessionRecs.data : [],
+  recommended: [],
+  recommendedPage: [],
   recommendedStatus: 'idle',
-  recommendedFetchedForSession: !!(sessionRecs && Array.isArray(sessionRecs.data)),
+  recommendedFetchedForSession: false,
+  showRecommendations: true,
 };
 
 
@@ -81,19 +73,26 @@ export const fetchProductsByFiltersAsync = createAsyncThunk(
 // ...existing code...
 export const fetchHomeRecommendationsAsync = createAsyncThunk(
   'product/fetchHomeRecommendations',
-  async (_, { rejectWithValue, getState }) => {
+  async (userIdArg, { rejectWithValue, getState }) => {
     try {
       const state = getState();
       const userId =
-        state.auth?.user?._id ||
-        state.user?.currentUser?._id ||
-        state.session?.user?._id ||
+        userIdArg ||
+        state.user?.userInfo?.id ||
+        state.auth?.loggedInUserToken?.id ||
+        state.auth?.loggedInUserToken?._id ||
         null;
+
+      if (!userId) {
+        return [];
+      }
 
       const recResp = await fetchHomeRecommendationsAPI(userId);
       const ids = Array.isArray(recResp.data) ? recResp.data : [];
+      const maxItems = Math.max(ITEMS_PER_PAGE, ITEMS_PER_PAGE * RECOMMENDATION_MAX_PAGES);
+      const limitedIds = ids.slice(0, maxItems);
       const details = await Promise.all(
-        ids.map(async (id) => {
+        limitedIds.map(async (id) => {
           try {
             const r = await fetchProductById(id);
             return r.data;
@@ -149,7 +148,21 @@ export const productSlice = createSlice({
   reducers: {
     clearSelectedProduct: (state) => {
       state.selectedProduct = null
-    }
+    },
+    setRecommendedPage: (state, action) => {
+      const page = Number(action.payload?.page) || 1;
+      const perPage = Number(action.payload?.perPage) || 12;
+      const start = (page - 1) * perPage;
+      state.recommendedPage = state.recommended.slice(start, start + perPage);
+    },
+    clearRecommendations: (state) => {
+      state.recommended = [];
+      state.recommendedPage = [];
+      state.recommendedFetchedForSession = false;
+    },
+    setShowRecommendations: (state, action) => {
+      state.showRecommendations = Boolean(action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -165,23 +178,24 @@ export const productSlice = createSlice({
       // Home recommendations
       .addCase(fetchHomeRecommendationsAsync.pending, (state) => {
         state.recommendedStatus = 'loading';
-        // Prevent duplicate calls during StrictMode double-invoke or quick remounts
-        state.recommendedFetchedForSession = true;
+        state.recommended = [];
+        state.recommendedPage = [];
+        state.recommendedFetchedForSession = false;
+        state.showRecommendations = true;
       })
       .addCase(fetchHomeRecommendationsAsync.fulfilled, (state, action) => {
         state.recommendedStatus = 'idle';
         state.recommended = action.payload || [];
+        state.recommendedPage = state.recommended.slice(0, 12);
         state.recommendedFetchedForSession = true;
-        try {
-          if (typeof window !== 'undefined' && window.sessionStorage) {
-            sessionStorage.setItem('homeRecsV1', JSON.stringify({ data: state.recommended }));
-          }
-        } catch (e) { }
+        state.showRecommendations = true;
       })
       .addCase(fetchHomeRecommendationsAsync.rejected, (state) => {
         state.recommendedStatus = 'idle';
         state.recommended = [];
+        state.recommendedPage = [];
         state.recommendedFetchedForSession = true;
+        state.showRecommendations = false;
       })
       // Brands/Categories
       .addCase(fetchBrandsAsync.pending, (state) => {
@@ -225,7 +239,7 @@ export const productSlice = createSlice({
   },
 });
 
-export const { clearSelectedProduct } = productSlice.actions;
+export const { clearSelectedProduct, setRecommendedPage, clearRecommendations, setShowRecommendations } = productSlice.actions;
 
 export const selectAllProducts = (state) => state.product.products;
 export const selectBrands = (state) => state.product.brands;
@@ -235,6 +249,9 @@ export const selectProductListStatus = (state) => state.product.status;
 
 export const selectTotalItems = (state) => state.product.totalItems;
 export const selectRecommendedProducts = (state) => state.product.recommended;
-export const selectRecommendedFetchedForSession = (state) => state.product.recommendedFetchedForSession;
+export const selectRecommendedPage = (state) => state.product.recommendedPage;
+export const selectRecommendedStatus = (state) => state.product.recommendedStatus;
+export const selectShowRecommendations = (state) => state.product.showRecommendations;
+export const selectRecommendationsFetchedForSession = (state) => state.product.recommendedFetchedForSession;
 
 export default productSlice.reducer;

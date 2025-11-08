@@ -11,11 +11,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectItems } from '../cart/cartSlice';
 import { selectLoggedInUser } from '../auth/authSlice';
 import { selectUserInfo, fetchLoggedInUserAsync } from '../user/userSlice';
+import { clearRecommendations, setShowRecommendations } from '../product/productSlice';
 import { useEffect } from 'react';
 import SearchBar from '../auth/components/SearchBar';
 
 const navigation = [
-  { name: 'Products', link: '/', user: true },
+  { name: 'All Products', link: '/products', user: true, resetRecommendations: true },
   { name: 'Products', link: '/admin', admin: true },
   { name: 'Orders', link: '/admin/orders', admin: true },
 ];
@@ -40,6 +41,15 @@ function NavBar({ children, showHeader = true }) {
     dispatch(fetchLoggedInUserAsync());
   }, [dispatch]);
 
+  const handleProductsClick = () => {
+    dispatch(setShowRecommendations(false));
+    dispatch(clearRecommendations());
+  };
+
+  const handleHomeClick = () => {
+    dispatch(setShowRecommendations(true));
+  };
+
   return (
     <>
       {userInfo && (
@@ -58,7 +68,7 @@ function NavBar({ children, showHeader = true }) {
                     {/* Logo and Navigation */}
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <Link to="/" className="flex items-center space-x-2">
+                        <Link to="/" onClick={handleHomeClick} className="flex items-center space-x-2">
                           <div className="h-10 w-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
                             <span className="text-white font-bold text-lg">🌱</span>
                           </div>
@@ -74,6 +84,7 @@ function NavBar({ children, showHeader = true }) {
                               <Link
                                 key={item.name}
                                 to={item.link}
+                                onClick={item.resetRecommendations ? handleProductsClick : undefined}
                                 className={classNames(
                                   item.current
                                     ? 'bg-emerald-700 text-white'
@@ -199,6 +210,7 @@ function NavBar({ children, showHeader = true }) {
                           <Link
                             key={item.name}
                             to={item.link}
+                            onClick={item.resetRecommendations ? handleProductsClick : undefined}
                             className={classNames(
                               item.current
                                 ? 'bg-emerald-700 text-white'

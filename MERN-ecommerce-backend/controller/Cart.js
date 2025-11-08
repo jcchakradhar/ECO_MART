@@ -1,6 +1,36 @@
 const { Cart } = require('../model/Cart');
 const { Product } = require('../model/Product');
 
+const RECOMMENDATION_BASE_URL = process.env.RECOMMENDATION_SERVICE_URL || process.env.RECOMMENDATION_URL || 'http://127.0.0.1:5001';
+const RECOMMENDATION_TIMEOUT_MS = Number(process.env.RECOMMENDATION_TIMEOUT_MS) || 8000;
+const hasAbortTimeout = typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function';
+
+async function markUserPersonalized(userId) {
+  if (!RECOMMENDATION_BASE_URL) return;
+
+  const userIdStr = typeof userId === 'string' ? userId : userId?.toString();
+  if (!userIdStr) return;
+
+  const headers = {
+    Accept: 'application/json',
+    'X-User-Id': userIdStr,
+  };
+
+  const options = { method: 'POST', headers };
+  if (hasAbortTimeout) {
+    options.signal = AbortSignal.timeout(RECOMMENDATION_TIMEOUT_MS);
+  }
+
+  try {
+    const response = await fetch(`${RECOMMENDATION_BASE_URL}/api/user/mark-personalized`, options);
+    if (!response.ok) {
+      console.error(`[cart] mark-personalized failed: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('[cart] mark-personalized error:', error?.message || error);
+  }
+}
+
 exports.fetchCartByUser = async (req, res) => {
   const { id } = req.user;
   try {
@@ -23,6 +53,7 @@ exports.addToCart = async (req, res) => {
     }
     const doc = await cart.save();
     const result = await doc.populate('product');
+    markUserPersonalized(id).catch(() => { });
     res.status(201).json(result);
   } catch (err) {
     res.status(400).json(err);

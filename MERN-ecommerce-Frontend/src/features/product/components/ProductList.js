@@ -6,13 +6,18 @@ import {
   selectProductListStatus,
   selectTotalItems,
   selectRecommendedProducts,
+  selectRecommendedStatus,
+  selectRecommendedPage,
+  selectShowRecommendations,
+  selectRecommendationsFetchedForSession,
+  setRecommendedPage,
 } from '../productSlice';
 import { Menu, Transition } from '@headlessui/react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { ITEMS_PER_PAGE } from '../../../app/constants';
 import Pagination from '../../common/Pagination';
-import { Grid } from 'react-loader-spinner';
+import { Grid, ThreeDots } from 'react-loader-spinner';
 import sustainabilityImage from '../../../assests/generated-image.png';
 import ProductCard from './ProductCard';
 
@@ -69,19 +74,41 @@ function HeroBanner() {
   );
 }
 
-export default function ProductList() {
+export default function ProductList({ forceRecommendations = false, forceCatalog = false } = {}) {
   const dispatch = useDispatch();
   const products = useSelector(selectAllProducts);
   const totalItems = useSelector(selectTotalItems);
-  const status = useSelector(selectProductListStatus);
+  const productStatus = useSelector(selectProductListStatus);
   const recommended = useSelector(selectRecommendedProducts);
+  const recommendedStatus = useSelector(selectRecommendedStatus);
+  const recommendedPageItems = useSelector(selectRecommendedPage);
+  const showRecommendations = useSelector(selectShowRecommendations);
+  const recommendedFetched = useSelector(selectRecommendationsFetchedForSession);
+  const wantsRecommendations = forceCatalog
+    ? false
+    : forceRecommendations
+      ? true
+      : Boolean(showRecommendations);
+  const recommendationMode = wantsRecommendations;
+  const recommendationLoading = recommendationMode && recommendedStatus === 'loading';
+  const recommendationResolved = recommendationMode && !recommendationLoading && recommendedFetched;
+  const recommendationHasItems = recommendationResolved && Array.isArray(recommended) && recommended.length > 0;
+  const [emptyDelayElapsed, setEmptyDelayElapsed] = useState(false);
+  const shouldShowLoading = recommendationMode && (!recommendationResolved || (recommendationResolved && !recommendationHasItems && !emptyDelayElapsed));
+  const isEmptyState = recommendationMode && recommendationResolved && !recommendationHasItems && emptyDelayElapsed;
+  const currentStatus = recommendationMode
+    ? shouldShowLoading
+      ? 'loading'
+      : recommendedStatus
+    : productStatus;
   // Filters removed: we no longer use categories/brands in the UI
   const [sort, setSort] = useState({});
   const [searchParams, setSearchParams] = useSearchParams();
   const pageParam = parseInt(searchParams.get('page') || '1', 10);
+  const initialPage = forceRecommendations ? 1 : pageParam;
   const sortParam = searchParams.get('_sort');
   const orderParam = searchParams.get('_order');
-  const [page, setPage] = useState(pageParam);
+  const [page, setPage] = useState(initialPage);
 
   // initialize sort from URL if present
   useEffect(() => {
@@ -98,18 +125,29 @@ export default function ProductList() {
     const next = { _sort: field, _order: sort._order || 'desc' };
     setSort(next);
     setPage(1);
-    setSearchParams({ page: '1', _sort: next._sort, _order: next._order });
+    if (!forceRecommendations) {
+      setSearchParams({ page: '1', _sort: next._sort, _order: next._order });
+    }
   };
 
   const handleOrderChange = (order) => {
     const next = { _sort: sort._sort || 'rating', _order: order };
     setSort(next);
     setPage(1);
-    setSearchParams({ page: '1', _sort: next._sort, _order: next._order });
+    if (!forceRecommendations) {
+      setSearchParams({ page: '1', _sort: next._sort, _order: next._order });
+    }
   };
 
   const handlePage = (pageNum) => {
     setPage(pageNum);
+    if (recommendationMode) {
+      if (recommendationResolved) {
+        dispatch(setRecommendedPage({ page: pageNum, perPage: ITEMS_PER_PAGE }));
+      }
+      return;
+    }
+
     const params = { page: String(pageNum) };
     if (sort._sort && sort._order) {
       params._sort = sort._sort;
@@ -119,11 +157,45 @@ export default function ProductList() {
   };
 
   useEffect(() => {
-    // If recommendations are present, show them and skip generic fetch for this render
-    if (recommended && recommended.length > 0) return;
+    // Wait for recommendation fetch to settle before falling back to generic list
+    if (recommendationMode) return;
     const pagination = { _page: page, _limit: ITEMS_PER_PAGE };
     dispatch(fetchProductsByFiltersAsync({ filter: {}, sort, pagination }));
-  }, [dispatch, sort, page, recommended]);
+  }, [dispatch, sort, page, recommendationMode]);
+
+  useEffect(() => {
+    if (!recommendationMode || !recommendationResolved) return;
+    const totalPages = Math.max(1, Math.ceil(recommended.length / ITEMS_PER_PAGE));
+    let nextPage = page;
+    if (page > totalPages) {
+      nextPage = totalPages;
+      setPage(nextPage);
+      if (!forceRecommendations) {
+        setSearchParams({ page: String(nextPage) });
+      }
+    }
+    dispatch(setRecommendedPage({ page: nextPage, perPage: ITEMS_PER_PAGE }));
+  }, [dispatch, recommendationMode, recommendationResolved, recommended, page, setSearchParams, forceRecommendations]);
+
+  useEffect(() => {
+    if (!forceRecommendations) return;
+    setPage(1);
+    setSearchParams({}, { replace: true });
+  }, [forceRecommendations, setSearchParams]);
+
+  useEffect(() => {
+    if (!recommendationMode || !recommendationResolved) {
+      setEmptyDelayElapsed(false);
+      return;
+    }
+    if (recommendationHasItems) {
+      setEmptyDelayElapsed(false);
+      return;
+    }
+    setEmptyDelayElapsed(false);
+    const timer = setTimeout(() => setEmptyDelayElapsed(true), 2200);
+    return () => clearTimeout(timer);
+  }, [recommendationMode, recommendationResolved, recommendationHasItems]);
 
   useEffect(() => {
     // If sort changes, keep current page in URL; optionally reset if needed.
@@ -145,11 +217,31 @@ export default function ProductList() {
           <div className="flex items-center justify-between bg-white border-b border-gray-200 py-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {recommended && recommended.length > 0 ? 'Recommended for you' : 'All Products'}
+                {recommendationMode ? 'Recommended for you' : 'All Products'}
               </h2>
-              <p className="text-sm text-gray-600">
-                {recommended && recommended.length > 0 ? recommended.length : totalItems} results
-              </p>
+              <div className="flex items-center space-x-2 text-sm text-gray-600 min-h-[24px]">
+                {recommendationMode ? (
+                  shouldShowLoading ? (
+                    <>
+                      <ThreeDots
+                        height="20"
+                        width="36"
+                        radius="9"
+                        color="rgb(34,197,94)"
+                        ariaLabel="loading-recommendations"
+                        visible={true}
+                      />
+                      <span>Please wait while we fetch recommended products...</span>
+                    </>
+                  ) : recommendationHasItems ? (
+                    <span>{`${recommended.length} results`}</span>
+                  ) : (
+                    <span>Personalized recommendations will appear once they’re ready.</span>
+                  )
+                ) : (
+                  <span>{`${totalItems} results`}</span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -217,7 +309,9 @@ export default function ProductList() {
                 onClick={() => {
                   setSort({});
                   setPage(1);
-                  setSearchParams({ page: '1' });
+                  if (!forceRecommendations) {
+                    setSearchParams({ page: '1' });
+                  }
                 }}
                 className="text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md px-3 py-2 bg-white hover:bg-gray-50"
                 title="Clear sort"
@@ -234,21 +328,23 @@ export default function ProductList() {
 
             {/* Product grid only (no sidebar filters) */}
             <div className="">
-              <ProductGrid products={(recommended && recommended.length > 0) ? recommended : products} status={status} page={page} />
+              <ProductGrid
+                products={recommendationMode ? (recommendationHasItems ? (recommendedPageItems?.length ? recommendedPageItems : recommended.slice(0, ITEMS_PER_PAGE)) : []) : products}
+                status={currentStatus}
+                page={page}
+              />
             </div>
           </section>
 
           {/* Pagination */}
-          {(!(recommended && recommended.length > 0)) && (
-            <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-              <Pagination
-                page={page}
-                setPage={setPage}
-                handlePage={handlePage}
-                totalItems={totalItems}
-              />
-            </div>
-          )}
+          <div className="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+            <Pagination
+              page={page}
+              setPage={setPage}
+              handlePage={handlePage}
+              totalItems={recommendationMode ? recommended.length : totalItems}
+            />
+          </div>
         </main>
       </div>
     </div>

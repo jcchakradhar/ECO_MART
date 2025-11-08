@@ -28,16 +28,16 @@ def update_price_tolerance(user_profile, product_price, avg_price, action_type, 
             # Decrease tolerance to be more strict
             current_tol = max(min_tol, current_tol - 0.01)
 
-    user_profile["price_tolerance"] = current_tol
+    user_profile["price_tolerance"] = round(current_tol, 6)
     return user_profile
 
 
 def update_user_weights(user_profile, avg_price, product_row, action_type="purchase"):
     delta = action_weight_delta.get(action_type, 0.02)  # default to small shift
-    weights = user_profile["weights"]
+    weights = dict(user_profile.get("weights") or {"carbon": 0.4, "water": 0.3, "rating": 0.3})
 
     # Normalize current weights
-    total_w = sum(weights.values())
+    total_w = sum(weights.values()) or 1.0
     weights = {k: v / total_w for k, v in weights.items()}
 
     # Get sustainability scores of product
@@ -65,7 +65,10 @@ def update_user_weights(user_profile, avg_price, product_row, action_type="purch
 
     # Normalize final weights
     total_upd = sum(updated_weights.values())
-    user_profile["weights"] = {k: v / total_upd for k, v in updated_weights.items()}
+    if total_upd == 0:
+        user_profile["weights"] = weights
+    else:
+        user_profile["weights"] = {k: round(v / total_upd, 6) for k, v in updated_weights.items()}
     user_profile = update_price_tolerance(user_profile, product_price, avg_price, action_type, min_tol=0.03, max_tol=0.75)
 
     return user_profile

@@ -10,7 +10,6 @@ export default function UserProfile() {
   const [selectedEditIndex, setSelectedEditIndex] = useState(-1);
   const [showAddAddressForm, setShowAddAddressForm] = useState(false);
 
-
   const {
     register,
     handleSubmit,
@@ -24,6 +23,22 @@ export default function UserProfile() {
     // Always refresh user info on profile load to ensure latest name/email
     dispatch(fetchLoggedInUserAsync());
   }, [dispatch]);
+
+  const safeNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const ecoScore = safeNumber(userInfo?.eco_score);
+  const waterScore = safeNumber(userInfo?.water_score);
+  const carbonSaved = safeNumber(userInfo?.carbon_saved);
+  const waterSaved = safeNumber(userInfo?.water_saved);
+
+  const formatMetric = (value, suffix = '') => {
+    const rounded = Math.round((value + Number.EPSILON) * 10) / 10;
+    const display = Number.isInteger(rounded) ? rounded : rounded.toFixed(1);
+    return `${display}${suffix}`;
+  };
 
   const handleEdit = (addressUpdate, index) => {
     const newUser = { ...userInfo, addresses: [...userInfo.addresses] }; // for shallow copy issue
@@ -84,7 +99,7 @@ export default function UserProfile() {
             </div>
             <div>
               <p className="text-sm text-emerald-700">Eco Score</p>
-              <p className="text-2xl font-bold text-emerald-900">0</p>
+              <p className="text-2xl font-bold text-emerald-900">{formatMetric(ecoScore)}</p>
             </div>
           </div>
           <div className="bg-white/80 backdrop-blur rounded-2xl border border-sky-200/40 p-5 flex items-center gap-4 shadow">
@@ -93,7 +108,7 @@ export default function UserProfile() {
             </div>
             <div>
               <p className="text-sm text-sky-700">Water Score</p>
-              <p className="text-2xl font-bold text-sky-900">0</p>
+              <p className="text-2xl font-bold text-sky-900">{formatMetric(waterScore)}</p>
             </div>
           </div>
           <div className="bg-white/80 backdrop-blur rounded-2xl border border-emerald-200/40 p-5 flex items-center gap-4 shadow">
@@ -102,7 +117,7 @@ export default function UserProfile() {
             </div>
             <div>
               <p className="text-sm text-emerald-700">Carbon Saved</p>
-              <p className="text-2xl font-bold text-emerald-900">0 kg</p>
+              <p className="text-2xl font-bold text-emerald-900">{formatMetric(carbonSaved, ' kg')}</p>
             </div>
           </div>
           <div className="bg-white/80 backdrop-blur rounded-2xl border border-sky-200/40 p-5 flex items-center gap-4 shadow">
@@ -111,7 +126,7 @@ export default function UserProfile() {
             </div>
             <div>
               <p className="text-sm text-sky-700">Water Saved</p>
-              <p className="text-2xl font-bold text-sky-900">0 L</p>
+              <p className="text-2xl font-bold text-sky-900">{formatMetric(waterSaved, ' L')}</p>
             </div>
           </div>
         </div>

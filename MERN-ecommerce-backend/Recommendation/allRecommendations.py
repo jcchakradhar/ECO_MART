@@ -1,4 +1,6 @@
+import logging
 from flask import Blueprint, jsonify, request
+import traceback
 from . import User_data as user_data
 from .workable_data import workable_dataset
 from .Existing_User_home_page import user_home_page_recommendations
@@ -6,8 +8,11 @@ from .Existing_User_search import search_based_recommendation
 from .Existing_User_cart import _to_jsonable, cart_alternatives
 from .score_calculation import calculate_sustainability_metrics
 from .user_profile_update import update_user_weights, update_price_tolerance
+from .New_User_Home_page import new_user_home_page_recommendations as new_user_home_recommendations
 
 bp = Blueprint("recommendations", __name__)
+logger = logging.getLogger(__name__)
+
 @bp.route("/api/user/profile-debug", methods=["GET"])
 def profile_debug():
     # Ensure profile is loaded from the request header
@@ -52,20 +57,24 @@ def get_home_page_recommendations():
             user_json = None
 
         # ---- DEBUG: To see what’s being returned ----
-        print("DEBUG → resp type:", type(resp))
-        print("DEBUG → user_json:", user_json)
-        print("DEBUG → status:", status)
+        logger.debug("home recommendations resp type: %s", type(resp))
+        logger.debug("home recommendations user_json: %s", user_json)
+        logger.debug("home recommendations status: %s", status)
 
         # ---- STEP 4: Validate user_json ----
         if not user_json or not isinstance(user_json, dict) or status != 200:
-            print("ERROR → invalid or missing user data:", user_json)
+            logger.error("home recommendations missing/invalid user data: %s", user_json)
             return jsonify({"error": "User not found or invalid"}), status
 
         # ---- STEP 5: Extract profile from user_data module if available ----
         profile = getattr(user_data, "profile", None) or user_json
 
         # ---- STEP 6: Generate recommendations ----
-        data = user_home_page_recommendations(profile, workable_dataset)
+        is_new_user = bool(profile.get("is_new_user", True))
+        if is_new_user:
+            data = new_user_home_recommendations(profile)
+        else:
+            data = user_home_page_recommendations(profile, workable_dataset)
 
         # ---- STEP 7: Normalize output ----
         if data is None:
@@ -83,7 +92,7 @@ def get_home_page_recommendations():
         return jsonify(data), 200
 
     except Exception as e:
-        print("ERROR in get_home_page_recommendations:", traceback.format_exc())
+        logger.error("ERROR in get_home_page_recommendations: %s", traceback.format_exc())
         return jsonify({"error": "internal", "message": str(e)}), 500
 
 
@@ -186,10 +195,12 @@ def get_product_score(product_id, group_delivery):
 
         # Try both 'product_id' and '_id' columns
         product_row = None
+        lookup_id = str(product_id).strip().upper()
+
         for col in ["product_id", "_id", "id"]:
             if col in df.columns:
-                # Cast both sides to string for matching
-                match = df[df[col].astype(str) == str(product_id)]
+                series = df[col].astype(str).str.strip().str.upper()
+                match = df[series == lookup_id]
                 if not match.empty:
                     product_row = match.iloc[0].to_dict()
                     break
@@ -211,7 +222,7 @@ def get_product_score(product_id, group_delivery):
         # user_data[water_score] += result["water_score"]
         # user_data[carbon_saved] += result["carbon_saved"]
         # user_data[water_saved] += result["water_saved"]
-        return jsonify(user_data.profile or []), 200
+        return jsonify(json_safe_profile(user_data.profile) if user_data.profile else []), 200
 
     except Exception as e:
         return jsonify({"error": "internal", "message": str(e)}), 500
@@ -268,9 +279,11 @@ def update_profile(product_id):
 
         # Find the product row
         product_row = None
+        lookup_id = str(product_id).strip().upper()
         for col in ["product_id", "_id", "id"]:
             if col in df.columns:
-                match = df[df[col].astype(str) == str(product_id)]
+                series = df[col].astype(str).str.strip().str.upper()
+                match = df[series == lookup_id]
                 if not match.empty:
                     product_row = match.iloc[0].to_dict()
                     break
@@ -279,12 +292,17 @@ def update_profile(product_id):
 
         # Calculate average price of user's purchased products
         purchased = user_data.profile.get("purchase_history", [])
-        import pandas as pd
-        purchased_df = pd.DataFrame(purchased, columns=["product_id"]) if purchased else pd.DataFrame()
+        purchase_ids = [str(x).strip().upper() for x in purchased if x]
+        if purchase_ids and "product_id" in df.columns:
+            product_id_series = df["product_id"].astype(str).str.strip().str.upper()
+            purchased_df = df[product_id_series.isin(purchase_ids)]
+        else:
+            purchased_df = df.head(0)
+
         from .common_code import get_user_avg_price
         avg_price = get_user_avg_price(purchased_df, df)
         if avg_price is None:
-        # Fallback: use mean price of all products
+            # Fallback: use mean price of all products
             if "price" in df.columns and not df["price"].empty:
                 avg_price = float(df["price"].mean())
             else:
@@ -302,9 +320,107 @@ def update_profile(product_id):
         # updated_profile = update_price_tolerance(updated_profile, product_row.get("price", 0), avg_price, action_type)
 
         # Save back to in-memory profile
+        was_new_user = user_data.profile.get("is_new_user", True)
         user_data.profile.update(updated_profile)
+        if was_new_user:
+            user_data.profile["is_new_user"] = False
 
-        return jsonify(user_data.profile), 200
+        # Persist numeric sustainability fields back to Mongo so other services stay in sync
+        try:
+            user_id = user_data.profile.get("_id")
+            mongo_id = None
+            if user_id and ObjectId.is_valid(str(user_id)):
+                try:
+                    mongo_id = ObjectId(str(user_id))
+                except Exception:
+                    mongo_id = None
+
+            def to_float(value):
+                try:
+                    num = float(value)
+                    if num != num:  # NaN guard
+                        return None
+                    return num
+                except (TypeError, ValueError):
+                    return None
+
+            update_doc = {}
+
+            if was_new_user:
+                update_doc["is_new_user"] = False
+
+            weights = user_data.profile.get("weights")
+            if isinstance(weights, dict):
+                weight_payload = {}
+                for key in ("carbon", "water", "rating"):
+                    num = to_float(weights.get(key))
+                    if num is not None:
+                        weight_payload[key] = round(num, 6)
+                if len(weight_payload) == 3:
+                    user_data.profile["weights"] = weight_payload
+                    update_doc["weights"] = weight_payload
+
+            for key in ("price_tolerance", "eco_score", "water_score", "carbon_saved", "water_saved"):
+                num = to_float(user_data.profile.get(key))
+                if num is not None:
+                    rounded = round(num, 6) if isinstance(num, float) else num
+                    user_data.profile[key] = rounded
+                    update_doc[key] = rounded
+
+            if update_doc and (mongo_id is not None or user_id):
+                query = {"_id": mongo_id if mongo_id is not None else user_id}
+                user_data.collection.update_one(query, {"$set": update_doc})
+        except Exception as persist_error:
+            logger.warning("[profile] failed to persist sustainability updates: %s", persist_error)
+
+        return jsonify(json_safe_profile(user_data.profile)), 200
 
     except Exception as e:
+        return jsonify({"error": "internal", "message": str(e)}), 500
+
+
+@bp.route("/api/user/mark-personalized", methods=["POST"])
+def mark_user_personalized():
+    try:
+        resp = user_data.get_current_user()
+        response_obj = resp
+        status_code = getattr(resp, "status_code", None)
+
+        if isinstance(resp, tuple):
+            response_obj, status_code = resp
+            if status_code != 200:
+                return resp
+        elif status_code and status_code != 200:
+            return resp
+
+        profile = getattr(user_data, "profile", None)
+        if not isinstance(profile, dict):
+            payload = response_obj.get_json(silent=True) if hasattr(response_obj, "get_json") else None
+            return jsonify(payload or {"error": "User not found"}), status_code or 404
+
+        if profile.get("is_new_user") is not False:
+            profile["is_new_user"] = False
+            try:
+                user_id = profile.get("_id")
+                mongo_id = None
+                if user_id and ObjectId.is_valid(str(user_id)):
+                    try:
+                        mongo_id = ObjectId(str(user_id))
+                    except Exception:
+                        mongo_id = None
+
+                query = None
+                if mongo_id is not None:
+                    query = {"_id": mongo_id}
+                elif user_id:
+                    query = {"_id": user_id}
+
+                if query:
+                    user_data.collection.update_one(query, {"$set": {"is_new_user": False}})
+            except Exception as persist_error:
+                logger.warning("[profile] failed to persist is_new_user flag: %s", persist_error)
+
+        return jsonify({"is_new_user": False}), 200
+    except Exception as e:
+        logger.error("ERROR in mark_user_personalized: %s", traceback.format_exc())
         return jsonify({"error": "internal", "message": str(e)}), 500

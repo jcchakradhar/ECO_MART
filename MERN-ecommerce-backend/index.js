@@ -21,6 +21,7 @@ const ordersRouter = require('./routes/Order');
 const { User } = require('./model/User');
 const { isAuth, sanitizeUser, cookieExtractor } = require('./services/common');
 const path = require('path');
+const fs = require('fs');
 const { Order } = require('./model/Order');
 
 // Stripe optional setup
@@ -38,7 +39,13 @@ if (!STRIPE_KEY) {
 }
 
 // middlewares
-server.use(express.static(path.resolve(__dirname, 'build')));
+const buildDir = path.resolve(__dirname, 'build');
+const buildIndexPath = path.join(buildDir, 'index.html');
+if (fs.existsSync(buildDir)) {
+  server.use(express.static(buildDir));
+} else {
+  console.warn('[static] build directory not found; skipping frontend static middleware.');
+}
 server.use(cookieParser());
 server.use(
   session({
@@ -100,7 +107,13 @@ server.post(
 );
 
 // React fallback
-server.get('*', (req, res) => res.sendFile(path.resolve('build', 'index.html')));
+if (fs.existsSync(buildIndexPath)) {
+  server.get('*', (req, res) => res.sendFile(buildIndexPath));
+} else {
+  server.get('*', (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'Backend API running. Build assets not found.' });
+  });
+}
 
 // Passport Strategies
 passport.use(

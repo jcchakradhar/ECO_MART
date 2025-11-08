@@ -83,7 +83,19 @@ def from_purchase_history(df, purchased_categories, avg_purchase_price, weights,
 
     combined = pd.concat([search_recs, purchase_recs], ignore_index=True)
     if combined.empty:
-        return new_user_home_page_recommendations(user_profile)
+        if user_profile.get("is_new_user", True):
+            return new_user_home_page_recommendations(user_profile)
+
+        fallback_df = df.copy()
+        fallback_df["sustainability_score"] = fallback_df.apply(
+            lambda row: calculate_product_score(row, weights), axis=1
+        )
+        fallback_df = fallback_df.sort_values("sustainability_score", ascending=False)
+        if "_id" in fallback_df.columns:
+            return fallback_df["_id"]
+        if "product_id" in fallback_df.columns:
+            return fallback_df["product_id"]
+        return fallback_df.index.to_series()
   # Return empty Series if no recommendations
     # Remove already purchased products
     combined = combined[~combined["product_id"].isin(purchase_history)]

@@ -1,3 +1,4 @@
+import logging
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from bson import ObjectId, Binary
@@ -12,6 +13,7 @@ app = Flask(__name__)
 load_dotenv()
 
 profile = {}
+logger = logging.getLogger(__name__)
 
 mongo_uri = os.getenv("MONGO_URI") or os.getenv("Mongo_URI")
 client = MongoClient(mongo_uri)
@@ -75,43 +77,41 @@ def get_current_user(user_id=None):
         return jsonify({"error": "Missing X-User-Id header"}), 400
 
     try:
-        print("=== DEBUG → get_current_user ===")
-        print("Incoming user_id:", user_id, "| type:", type(user_id))
+        logger.debug("get_current_user called with user_id=%s type=%s", user_id, type(user_id))
 
         user = None
 
         # Try ObjectId conversion
         try:
             obj_id = ObjectId(user_id)
-            print("Converted user_id to ObjectId:", obj_id)
+            logger.debug("Converted user_id to ObjectId: %s", obj_id)
             user = collection.find_one({"_id": obj_id})
-            print("Query result by ObjectId:", user)
+            logger.debug("Query result by ObjectId: %s", user)
         except Exception as e:
-            print("Invalid ObjectId:", e)
+            logger.debug("ObjectId conversion failed: %s", e)
 
         # Try string or email fallback
         if not user:
-            print("Trying fallback lookups ...")
             user = collection.find_one({"_id": user_id})
-            print("Query result by string _id:", user)
             if not user:
                 user = collection.find_one({"email": user_id})
-                print("Query result by email:", user)
 
         # Final decision
         if not user:
-            print(">>> USER NOT FOUND in DB for:", user_id)
+            logger.debug("User not found for identifier: %s", user_id)
             return jsonify({"error": "User not found"}), 404
 
         # Convert for JSON response
         user["_id"] = str(user["_id"])
         profile = _to_jsonable(dict(user))
+        if "is_new_user" not in profile:
+            profile["is_new_user"] = True
 
-        print(">>> USER FOUND:", profile.get("_id"))
+        logger.debug("User found: %s", profile.get("_id"))
         return jsonify(profile), 200
 
     except Exception as e:
-        print("get_current_user error:", traceback.format_exc())
+        logger.exception("get_current_user error")
         return jsonify({"error": "Internal error", "message": str(e)}), 500
 
 

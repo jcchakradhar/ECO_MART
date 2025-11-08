@@ -23,6 +23,7 @@ import UserProfilePage from './pages/UserProfilePage';
 import { fetchLoggedInUserAsync } from './features/user/userSlice';
 import Logout from './features/auth/components/Logout';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ProductsPage from './pages/ProductsPage';
 import ProtectedAdmin from './features/auth/components/ProtectedAdmin';
 import AdminHome from './pages/AdminHome';
 import AdminProductDetailPage from './pages/AdminProductDetailPage';
@@ -48,6 +49,14 @@ const router = createBrowserRouter([
     element: (
       <Protected>
         <Home></Home>
+      </Protected>
+    ),
+  },
+  {
+    path: '/products',
+    element: (
+      <Protected>
+        <ProductsPage></ProductsPage>
       </Protected>
     ),
   },
