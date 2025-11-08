@@ -7,11 +7,32 @@ import {
   selectUserOrders,
 } from '../userSlice';
 import { Grid } from 'react-loader-spinner';
+import { Link } from 'react-router-dom';
 
 export default function UserOrders() {
   const dispatch = useDispatch();
   const orders = useSelector(selectUserOrders);
   const status = useSelector(selectUserInfoStatus);
+  // Helpers: robust money parsing/formatting
+  const parseMoney = (v) => {
+    if (v === undefined || v === null) return null;
+    const num = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.]/g, '')) : Number(v);
+    return Number.isFinite(num) ? num : null;
+  };
+  const getUnitPrice = (product) => {
+    const discount = parseMoney(product?.discountPrice);
+    const price = parseMoney(product?.price);
+    return discount ?? price ?? 0;
+  };
+  const formatMoney = (n) => (Number.isFinite(n) ? n.toFixed(2) : '0.00');
+  // Helpers: order date formatting (createdAt preferred)
+  const getOrderTime = (o) => {
+    const d = o?.createdAt || o?.updatedAt || o?.date;
+    const t = d ? new Date(d).getTime() : NaN;
+    return Number.isFinite(t) ? t : null;
+  };
+  const formatOrderDate = (t) =>
+    t ? new Date(t).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' }) : 'Unknown';
 
   useEffect(() => {
     dispatch(fetchLoggedInUserOrderAsync());
@@ -19,101 +40,133 @@ export default function UserOrders() {
 
   return (
     <div>
-      {orders && orders.map((order) => (
-        <div key={order.id}>
-          <div>
-            <div className="mx-auto mt-12 bg-white max-w-7xl px-4 sm:px-6 lg:px-8">
-              <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-                <h1 className="text-4xl my-5 font-bold tracking-tight text-gray-900">
-                  Order # {order.id}
-                </h1>
-                <h3 className="text-xl my-5 font-bold tracking-tight text-red-900">
-                  Order Status : {order.status}
-                </h3>
-                <div className="flow-root">
-                  <ul className="-my-6 divide-y divide-gray-200">
-                    {order.items.map((item) => (
-                      <li key={item.id} className="flex py-6">
-                        <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
-                          <img
-                            src={item.product.thumbnail}
-                            alt={item.product.title}
-                            className="h-full w-full object-cover object-center"
-                          />
-                        </div>
-
-                        <div className="ml-4 flex flex-1 flex-col">
-                          <div>
-                            <div className="flex justify-between text-base font-medium text-gray-900">
-                              <h3>
-                                <a href={item.product.id}>{item.product.title}</a>
-                              </h3>
-                              <p className="ml-4">${item.product.discountPrice}</p>
-                            </div>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {item.product.brand}
-                            </p>
+      {orders && orders.length > 0 ? ([...orders]
+        .sort((a, b) => {
+          const toMs = (d) => {
+            if (!d) return 0;
+            const t = new Date(d).getTime();
+            return Number.isFinite(t) ? t : 0;
+          };
+          // Sort by createdAt desc; fallback to updatedAt; unknowns go last
+          return toMs(b.createdAt || b.updatedAt) - toMs(a.createdAt || a.updatedAt);
+        })
+        .map((order) => (
+          <div key={order.id}>
+            <div>
+              <div className="mx-auto mt-12 bg-white max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
+                  {/* Order number hidden as requested */}
+                  <h3 className="text-xl my-2 font-bold tracking-tight text-red-900">
+                    Order Status : {order.status}
+                  </h3>
+                  <p className="text-sm mb-3 text-gray-600">Ordered on: {formatOrderDate(getOrderTime(order))}</p>
+                  <div className="flow-root">
+                    <ul className="-my-6 divide-y divide-gray-200">
+                      {order.items.map((item) => (
+                        <li key={item.id} className="flex py-6">
+                          <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-gray-200">
+                            <img
+                              src={(item.product.images && item.product.images[0]) || item.product.imgUrl || item.product.thumbnail || 'https://via.placeholder.com/200'}
+                              alt={item.product.title}
+                              className="h-full w-full object-cover object-center"
+                            />
                           </div>
-                          <div className="flex flex-1 items-end justify-between text-sm">
-                            <div className="text-gray-500">
-                              <label
-                                htmlFor="quantity"
-                                className="inline mr-5 text-sm font-medium leading-6 text-gray-900"
-                              >
-                                Qty :{item.quantity}
-                              </label>
+
+                          <div className="ml-4 flex flex-1 flex-col">
+                            <div>
+                              <div className="flex justify-between text-base font-medium text-gray-900">
+                                <h3>
+                                  <Link to={`/product-detail/${item.product.id}`}>{item.product.title}</Link>
+                                </h3>
+                                <p className="ml-4">${formatMoney(getUnitPrice(item.product))}</p>
+                              </div>
+                              <p className="mt-1 text-sm text-gray-500">
+                                {item.product.brand}
+                              </p>
                             </div>
+                            <div className="flex flex-1 items-end justify-between text-sm">
+                              <div className="text-gray-500">
+                                <label
+                                  htmlFor="quantity"
+                                  className="inline mr-5 text-sm font-medium leading-6 text-gray-900"
+                                >
+                                  Qty: {item.quantity}
+                                </label>
+                                <div className="mt-1 text-gray-600">
+                                  {(() => {
+                                    const unit = getUnitPrice(item.product);
+                                    const qty = Number(item.quantity) || 0;
+                                    const sub = unit * qty;
+                                    return (
+                                      <>Subtotal: <span className="font-semibold">${formatMoney(sub)}</span></>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
 
-                            <div className="flex"></div>
+                              <div className="flex"></div>
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
 
-              <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
-                <div className="flex justify-between my-2 text-base font-medium text-gray-900">
-                  <p>Subtotal</p>
-                  <p>$ {order.totalAmount}</p>
-                </div>
-                <div className="flex justify-between my-2 text-base font-medium text-gray-900">
-                  <p>Total Items in Cart</p>
-                  <p>{order.totalItems} items</p>
-                </div>
-                <p className="mt-0.5 text-sm text-gray-500">
-                  Shipping Address :
-                </p>
-                <div className="flex justify-between gap-x-6 px-5 py-5 border-solid border-2 border-gray-200">
-                  <div className="flex gap-x-4">
-                    <div className="min-w-0 flex-auto">
-                      <p className="text-sm font-semibold leading-6 text-gray-900">
-                        {order.selectedAddress.name}
+                <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
+                  <div className="flex justify-between my-2 text-base font-medium text-gray-900">
+                    <p>Subtotal</p>
+                    <p>${formatMoney(parseMoney(order.totalAmount) ?? (order.items || []).reduce((sum, it) => sum + getUnitPrice(it.product) * (Number(it.quantity) || 0), 0))}</p>
+                  </div>
+                  <div className="flex justify-between my-2 text-base font-medium text-gray-900">
+                    <p>Total Items in Cart</p>
+                    <p>{order.totalItems} items</p>
+                  </div>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    Shipping Address :
+                  </p>
+                  <div className="flex justify-between gap-x-6 px-5 py-5 border-solid border-2 border-gray-200">
+                    <div className="flex gap-x-4">
+                      <div className="min-w-0 flex-auto">
+                        <p className="text-sm font-semibold leading-6 text-gray-900">
+                          {order.selectedAddress.name}
+                        </p>
+                        <p className="mt-1 truncate text-xs leading-5 text-gray-500">
+                          {order.selectedAddress.street}
+                        </p>
+                        <p className="mt-1 truncate text-xs leading-5 text-gray-500">
+                          {order.selectedAddress.pinCode}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden sm:flex sm:flex-col sm:items-end">
+                      <p className="text-sm leading-6 text-gray-900">
+                        Phone: {order.selectedAddress.phone}
                       </p>
-                      <p className="mt-1 truncate text-xs leading-5 text-gray-500">
-                        {order.selectedAddress.street}
-                      </p>
-                      <p className="mt-1 truncate text-xs leading-5 text-gray-500">
-                        {order.selectedAddress.pinCode}
+                      <p className="text-sm leading-6 text-gray-500">
+                        {order.selectedAddress.city}
                       </p>
                     </div>
-                  </div>
-                  <div className="hidden sm:flex sm:flex-col sm:items-end">
-                    <p className="text-sm leading-6 text-gray-900">
-                      Phone: {order.selectedAddress.phone}
-                    </p>
-                    <p className="text-sm leading-6 text-gray-500">
-                      {order.selectedAddress.city}
-                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        ))) : (
+        <div className="mx-auto mt-16 max-w-3xl text-center text-gray-600">
+          <h2 className="text-2xl font-semibold text-gray-800">You have no orders yet</h2>
+          <p className="mt-2">Browse products and place your first eco-friendly order.</p>
+          <div className="mt-6">
+            <Link
+              to="/"
+              className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            >
+              Continue Shopping
+            </Link>
+          </div>
         </div>
-      ))}
-       {status === 'loading' ? (
+      )}
+      {status === 'loading' ? (
         <Grid
           height="80"
           width="80"

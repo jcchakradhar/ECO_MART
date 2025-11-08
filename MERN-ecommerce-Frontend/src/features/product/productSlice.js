@@ -1,13 +1,16 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { ITEMS_PER_PAGE } from '../../app/constants';
 import {
-  fetchAllProducts,
   fetchProductsByFilters,
   fetchBrands,
   fetchCategories,
   fetchProductById,
   createProduct,
   updateProduct,
+  fetchHomeRecommendationsAPI,
 } from './productAPI';
+
+const RECOMMENDATION_MAX_PAGES = 5;
 
 const initialState = {
   products: [],
@@ -16,6 +19,12 @@ const initialState = {
   status: 'idle',
   totalItems: 0,
   selectedProduct: null,
+  // recommendations for Home page
+  recommended: [],
+  recommendedPage: [],
+  recommendedStatus: 'idle',
+  recommendedFetchedForSession: false,
+  showRecommendations: true,
 };
 
 
@@ -36,6 +45,69 @@ export const fetchProductsByFiltersAsync = createAsyncThunk(
     return response.data;
   }
 );
+
+// Fetch recommendations once per login session and resolve to product details
+// export const fetchHomeRecommendationsAsync = createAsyncThunk(
+//   'product/fetchHomeRecommendations',
+//   async (_, { rejectWithValue }) => {
+//     try {
+//       const recResp = await fetchHomeRecommendationsAPI();
+//       const ids = Array.isArray(recResp.data) ? recResp.data : [];
+//       // Resolve product docs; backend GET /products/:id returns a product
+//       const details = await Promise.all(
+//         ids.map(async (id) => {
+//           try {
+//             const r = await fetchProductById(id);
+//             return r.data;
+//           } catch {
+//             return null;
+//           }
+//         })
+//       );
+//       return details.filter(Boolean);
+//     } catch (e) {
+//       return rejectWithValue(e?.message || 'failed');
+//     }
+//   }
+// );
+// ...existing code...
+export const fetchHomeRecommendationsAsync = createAsyncThunk(
+  'product/fetchHomeRecommendations',
+  async (userIdArg, { rejectWithValue, getState }) => {
+    try {
+      const state = getState();
+      const userId =
+        userIdArg ||
+        state.user?.userInfo?.id ||
+        state.auth?.loggedInUserToken?.id ||
+        state.auth?.loggedInUserToken?._id ||
+        null;
+
+      if (!userId) {
+        return [];
+      }
+
+      const recResp = await fetchHomeRecommendationsAPI(userId);
+      const ids = Array.isArray(recResp.data) ? recResp.data : [];
+      const maxItems = Math.max(ITEMS_PER_PAGE, ITEMS_PER_PAGE * RECOMMENDATION_MAX_PAGES);
+      const limitedIds = ids.slice(0, maxItems);
+      const details = await Promise.all(
+        limitedIds.map(async (id) => {
+          try {
+            const r = await fetchProductById(id);
+            return r.data;
+          } catch {
+            return null;
+          }
+        })
+      );
+      return details.filter(Boolean);
+    } catch (e) {
+      return rejectWithValue(e?.message || 'failed');
+    }
+  }
+);
+// ...existing code...
 
 export const fetchBrandsAsync = createAsyncThunk(
   'product/fetchBrands',
@@ -74,12 +146,27 @@ export const productSlice = createSlice({
   name: 'product',
   initialState,
   reducers: {
-    clearSelectedProduct:(state)=>{
+    clearSelectedProduct: (state) => {
       state.selectedProduct = null
-    }
+    },
+    setRecommendedPage: (state, action) => {
+      const page = Number(action.payload?.page) || 1;
+      const perPage = Number(action.payload?.perPage) || 12;
+      const start = (page - 1) * perPage;
+      state.recommendedPage = state.recommended.slice(start, start + perPage);
+    },
+    clearRecommendations: (state) => {
+      state.recommended = [];
+      state.recommendedPage = [];
+      state.recommendedFetchedForSession = false;
+    },
+    setShowRecommendations: (state, action) => {
+      state.showRecommendations = Boolean(action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Products list
       .addCase(fetchProductsByFiltersAsync.pending, (state) => {
         state.status = 'loading';
       })
@@ -88,6 +175,29 @@ export const productSlice = createSlice({
         state.products = action.payload.products;
         state.totalItems = action.payload.totalItems;
       })
+      // Home recommendations
+      .addCase(fetchHomeRecommendationsAsync.pending, (state) => {
+        state.recommendedStatus = 'loading';
+        state.recommended = [];
+        state.recommendedPage = [];
+        state.recommendedFetchedForSession = false;
+        state.showRecommendations = true;
+      })
+      .addCase(fetchHomeRecommendationsAsync.fulfilled, (state, action) => {
+        state.recommendedStatus = 'idle';
+        state.recommended = action.payload || [];
+        state.recommendedPage = state.recommended.slice(0, 12);
+        state.recommendedFetchedForSession = true;
+        state.showRecommendations = true;
+      })
+      .addCase(fetchHomeRecommendationsAsync.rejected, (state) => {
+        state.recommendedStatus = 'idle';
+        state.recommended = [];
+        state.recommendedPage = [];
+        state.recommendedFetchedForSession = true;
+        state.showRecommendations = false;
+      })
+      // Brands/Categories
       .addCase(fetchBrandsAsync.pending, (state) => {
         state.status = 'loading';
       })
@@ -102,6 +212,7 @@ export const productSlice = createSlice({
         state.status = 'idle';
         state.categories = action.payload;
       })
+      // Product details create/update
       .addCase(fetchProductByIdAsync.pending, (state) => {
         state.status = 'loading';
       })
@@ -121,17 +232,14 @@ export const productSlice = createSlice({
       })
       .addCase(updateProductAsync.fulfilled, (state, action) => {
         state.status = 'idle';
-        const index = state.products.findIndex(
-          (product) => product.id === action.payload.id
-        );
+        const index = state.products.findIndex((product) => product.id === action.payload.id);
         state.products[index] = action.payload;
         state.selectedProduct = action.payload;
-
       });
   },
 });
 
-export const { clearSelectedProduct } = productSlice.actions;
+export const { clearSelectedProduct, setRecommendedPage, clearRecommendations, setShowRecommendations } = productSlice.actions;
 
 export const selectAllProducts = (state) => state.product.products;
 export const selectBrands = (state) => state.product.brands;
@@ -140,5 +248,10 @@ export const selectProductById = (state) => state.product.selectedProduct;
 export const selectProductListStatus = (state) => state.product.status;
 
 export const selectTotalItems = (state) => state.product.totalItems;
+export const selectRecommendedProducts = (state) => state.product.recommended;
+export const selectRecommendedPage = (state) => state.product.recommendedPage;
+export const selectRecommendedStatus = (state) => state.product.recommendedStatus;
+export const selectShowRecommendations = (state) => state.product.showRecommendations;
+export const selectRecommendationsFetchedForSession = (state) => state.product.recommendedFetchedForSession;
 
 export default productSlice.reducer;

@@ -3,38 +3,35 @@ import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useSearch } from '../../../contexts/SearchContext';
 import { useNavigate } from 'react-router-dom';
 
-const SearchBar = ({ 
-  isMobile = false, 
-  customClasses = null, 
+const SearchBar = ({
+  isMobile = false,
+  customClasses = null,
   iconClasses = null,
-  placeholder = "Search products..." 
+  placeholder = "Search products..."
 }) => {
   const [localSearchTerm, setLocalSearchTerm] = useState('');
   const [showClearButton, setShowClearButton] = useState(false);
-  const { searchProducts, clearSearch } = useSearch();
+  const { clearSearch, searchTerm } = useSearch();
   const navigate = useNavigate();
 
   useEffect(() => {
     setShowClearButton(localSearchTerm.length > 0);
   }, [localSearchTerm]);
 
- const handleSearch = (e) => {
-e.preventDefault();
-if (localSearchTerm.trim()) {
-searchProducts(localSearchTerm);
-navigate('/search-results');
-     }
+  // Keep input in sync with global search term (e.g., on Search Results page)
+  useEffect(() => {
+    if (typeof searchTerm === 'string') {
+      setLocalSearchTerm(searchTerm);
+    }
+  }, [searchTerm]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (localSearchTerm.trim()) {
+      // Navigate with query in URL; SearchResults will perform the fetch
+      navigate(`/search-results?q=${encodeURIComponent(localSearchTerm)}`);
+    }
   };
-// const handleSearch = (e) => {
-//   e.preventDefault();
-//   if (localSearchTerm.trim()) {
-//     // 🛑 Don't call searchProducts here anymore.
-//     // searchProducts(localSearchTerm); 
-    
-//     // ✅ Instead, navigate to the search results page with the query in the URL.
-//     navigate(`/search-results?q=${encodeURIComponent(localSearchTerm)}`);
-//   }
-// };
 
   const handleInputChange = (e) => {
     setLocalSearchTerm(e.target.value);
@@ -43,10 +40,12 @@ navigate('/search-results');
   const handleClear = () => {
     setLocalSearchTerm('');
     clearSearch();
+    // After clearing search, navigate to home page as requested
+    navigate('/');
   };
 
   // Use custom classes if provided, otherwise use default classes
-  const inputClasses = customClasses || (isMobile 
+  const inputClasses = customClasses || (isMobile
     ? "block w-full pl-10 pr-10 py-2 border border-transparent rounded-full leading-5 bg-white/10 backdrop-blur-sm text-white placeholder-emerald-200 focus:outline-none focus:bg-white/20 text-sm"
     : "block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-full leading-5 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500");
 
@@ -55,10 +54,10 @@ navigate('/search-results');
 
   return (
     <form onSubmit={handleSearch} className="relative w-full">
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-20">
         <MagnifyingGlassIcon className={`h-5 w-5 ${searchIconClasses}`} />
       </div>
-      
+
       <input
         type="text"
         value={localSearchTerm}
@@ -71,7 +70,7 @@ navigate('/search-results');
         <button
           type="button"
           onClick={handleClear}
-          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+          className="absolute inset-y-0 right-0 pr-3 flex items-center z-20"
         >
           <XMarkIcon className={`h-5 w-5 ${clearIconClasses} hover:text-gray-600`} />
         </button>

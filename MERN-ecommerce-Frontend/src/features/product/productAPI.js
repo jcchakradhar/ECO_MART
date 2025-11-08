@@ -39,27 +39,30 @@ export function fetchProductsByFilters(filter, sort, pagination, admin) {
   // sort = {_sort:"price",_order="desc"}
   // pagination = {_page:1,_limit=10}
 
-  let queryString = '';
-  for (let key in filter) {
-    const categoryValues = filter[key];
-    if (categoryValues.length) {
-      queryString += `${key}=${categoryValues}&`;
+  const params = new URLSearchParams();
+  for (const key in filter) {
+    const values = filter[key];
+    if (Array.isArray(values)) {
+      // Backend expects comma-separated list (e.g., brand=a,b); URLSearchParams will encode
+      if (values.length) params.set(key, values.join(','));
+    } else if (values !== undefined && values !== null) {
+      params.set(key, String(values));
     }
   }
-  for (let key in sort) {
-    queryString += `${key}=${sort[key]}&`;
+  for (const key in sort) {
+    if (sort[key] !== undefined) params.set(key, String(sort[key]));
   }
-  for (let key in pagination) {
-    queryString += `${key}=${pagination[key]}&`;
+  for (const key in pagination) {
+    if (pagination[key] !== undefined) params.set(key, String(pagination[key]));
   }
-  if(admin){
-    queryString += `admin=true`;
+  if (admin) {
+    params.set('admin', 'true');
   }
 
   return new Promise(async (resolve) => {
-    const response = await fetch(
-      '/products?' + queryString
-    );
+    const response = await fetch('/products?' + params.toString(), {
+      credentials: 'include',
+    });
     const data = await response.json();
     const totalItems = await response.headers.get('X-Total-Count');
     resolve({ data: { products: data, totalItems: +totalItems } });
@@ -79,5 +82,59 @@ export function fetchBrands() {
     const response = await fetch('/brands');
     const data = await response.json();
     resolve({ data });
+  });
+}
+
+// Fetch recommended product IDs for the Home page from the Python recommendations service
+// export function fetchHomeRecommendationsAPI() {
+//   return new Promise(async (resolve, reject) => {
+//     try {
+//       const response = await fetch('http://127.0.0.1:5001/api/recommendations/home', {
+//         method: 'GET',
+//         headers:{
+//           "Content-Type": "application/json",
+//           "X-User-Id": userId
+//         },  
+//         credentials: 'include',
+//       });
+//       // Allow non-200s to be handled as empty gracefully
+//       const data = await response.json().catch(() => []);
+//       resolve({ data });
+//     } catch (err) {
+//       resolve({ data: [] });
+//     }
+//   });
+// }
+export function fetchHomeRecommendationsAPI(userId) {
+  return new Promise(async (resolve) => {
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (userId) headers["X-User-Id"] = userId;
+
+      const response = await fetch('http://127.0.0.1:5001/api/recommendations/home', {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => []);
+      resolve({ data });
+    } catch {
+      resolve({ data: [] });
+    }
+  });
+}
+
+// Fetch recommended product IDs for search queries from the Python recommendations service
+export function fetchSearchRecommendationsAPI(query) {
+  return new Promise(async (resolve) => {
+    try {
+      const url = new URL('http://127.0.0.1:5001/api/recommendations/search');
+      url.search = new URLSearchParams({ query }).toString();
+      const response = await fetch(url.toString(), { method: 'GET' });
+      const data = await response.json().catch(() => []);
+      resolve({ data });
+    } catch (err) {
+      resolve({ data: [] });
+    }
   });
 }

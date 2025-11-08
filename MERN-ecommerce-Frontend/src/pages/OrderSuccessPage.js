@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { resetCartAsync } from "../features/cart/cartSlice";
 import { useDispatch } from "react-redux";
 import { resetOrder } from "../features/order/orderSlice";
+import { setShowRecommendations } from "../features/product/productSlice";
 import { CheckCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 function OrderSuccessPage() {
@@ -33,6 +34,7 @@ function OrderSuccessPage() {
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Link
               to="/"
+              onClick={() => dispatch(setShowRecommendations(true))}
               className="inline-flex items-center rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 transition-all"
             >
               <ArrowLeftIcon className="h-5 w-5 mr-2" />
