@@ -1,5 +1,5 @@
 # this is a e commerce website ,which is commited to sustainability
-### **Complete Guide to Running Your Full-Stack E-commerce Project**
+### **Complete Guide to Running The Full-Stack E-commerce Project**
 
 To run your application, you will need **three separate terminal windows** open simultaneously: one for the Node.js backend, one for the React frontend, and one for the Python Flask service.
 
