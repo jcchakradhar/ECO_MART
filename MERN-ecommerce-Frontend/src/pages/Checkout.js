@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import {
   createOrderAsync,
   selectCurrentOrder,
+  selectError,
   selectStatus,
 } from '../features/order/orderSlice';
 import { selectUserInfo } from '../features/user/userSlice';
@@ -33,7 +34,9 @@ function Checkout() {
   const isBuyNow = !!buyNowItem;
   const items = isBuyNow ? [buyNowItem] : cartItems;
   const status = useSelector(selectStatus);
+  const orderError = useSelector(selectError);
   const currentOrder = useSelector(selectCurrentOrder);
+  const isSubmitting = status === 'loading';
 
   // Helpers to normalize prices and avoid NaN
   const parseMoney = (v) => {
@@ -48,20 +51,57 @@ function Checkout() {
   };
   const formatMoney = (n) => (Number.isFinite(n) ? n.toFixed(2) : '0.00');
 
-  const totalAmount = items.reduce((amount, item) => {
-    const unit = getUnitPrice(item.product);
-    const qty = Number(item.quantity) || 0;
-    return amount + unit * qty;
-  }, 0);
-  const totalItems = items.reduce((total, item) => item.quantity + total, 0);
-
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedAddressIndex, setSelectedAddressIndex] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState(null);
   const [qtyDrafts, setQtyDrafts] = useState({});
 
+  const getQuantityKey = (item) => {
+    if (item?.id !== undefined && item?.id !== null) {
+      return `cart:${item.id}`;
+    }
+    const productRef = item?.product?.id || item?.product?._id || item?.product?.product_id || item?.product;
+    return productRef ? `product:${productRef}` : null;
+  };
+
+  const getDraftQuantityValue = (item) => {
+    const key = getQuantityKey(item);
+    if (!key) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(qtyDrafts, key)) return undefined;
+    return qtyDrafts[key];
+  };
+
+  const resolveQuantityForTotals = (item) => {
+    const draft = getDraftQuantityValue(item);
+    if (draft !== undefined) {
+      const parsed = Number.parseInt(draft, 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+      return 0;
+    }
+    const existing = Number(item?.quantity);
+    return Number.isFinite(existing) && existing > 0 ? existing : 0;
+  };
+
+  const getInputQuantityValue = (item) => {
+    const draft = getDraftQuantityValue(item);
+    if (draft !== undefined) {
+      return draft;
+    }
+    return item?.quantity ?? 1;
+  };
+
+  const totalItems = items.reduce((total, item) => total + resolveQuantityForTotals(item), 0);
+  const totalAmount = items.reduce((amount, item) => {
+    const unit = getUnitPrice(item.product);
+    const qty = resolveQuantityForTotals(item);
+    return amount + unit * qty;
+  }, 0);
+
   // Persist/restore last used address index and payment method per user
   const prefsKey = user?.id ? `checkoutPref:${user.id}` : null;
+  const addresses = Array.isArray(user?.addresses) ? user.addresses : [];
 
   useEffect(() => {
     if (!user) return;
@@ -70,13 +110,14 @@ function Checkout() {
       const saved = raw ? JSON.parse(raw) : null;
       let idx = typeof saved?.addressIndex === 'number' ? saved.addressIndex : null;
       const pay = typeof saved?.paymentMethod === 'string' ? saved.paymentMethod : null;
+      const userAddresses = Array.isArray(user?.addresses) ? user.addresses : [];
       // Fallback to first address if saved index is invalid
-      if ((idx === null || idx < 0 || idx >= (user.addresses?.length || 0)) && (user.addresses?.length || 0) > 0) {
+      if ((idx === null || idx < 0 || idx >= userAddresses.length) && userAddresses.length > 0) {
         idx = 0;
       }
       if (idx !== null) {
         setSelectedAddressIndex(idx);
-        setSelectedAddress(user.addresses[idx]);
+        setSelectedAddress(userAddresses[idx]);
       }
       if (pay) setPaymentMethod(pay);
     } catch {
@@ -134,16 +175,24 @@ function Checkout() {
   // Quantity controls (counter) for cart items on checkout page
   const commitQuantity = (item, nextQty) => {
     const qty = Math.max(1, Number.parseInt(nextQty, 10) || 1);
-    setQtyDrafts((prev) => ({ ...prev, [item.id]: qty }));
-    dispatch(updateCartAsync({ id: item.id, quantity: qty }));
+    const key = getQuantityKey(item);
+    if (key) {
+      setQtyDrafts((prev) => ({ ...prev, [key]: qty }));
+    }
+    if (item?.id) {
+      dispatch(updateCartAsync({ id: item.id, quantity: qty }));
+    }
   };
   const onQtyInputChange = (item, value) => {
     if (value === '' || /^\d+$/.test(value)) {
-      setQtyDrafts((prev) => ({ ...prev, [item.id]: value }));
+      const key = getQuantityKey(item);
+      if (!key) return;
+      setQtyDrafts((prev) => ({ ...prev, [key]: value }));
     }
   };
   const onQtyInputBlur = (item) => {
-    const draft = qtyDrafts[item.id];
+    const key = getQuantityKey(item);
+    const draft = key ? qtyDrafts[key] : undefined;
     commitQuantity(item, draft ?? item.quantity);
   };
   const onQtyKeyDown = (e, item) => {
@@ -153,11 +202,15 @@ function Checkout() {
     }
   };
   const decQty = (item) => {
-    const current = Number.parseInt(qtyDrafts[item.id] ?? item.quantity, 10) || 1;
+    const key = getQuantityKey(item);
+    const source = key && qtyDrafts[key] !== undefined ? qtyDrafts[key] : item.quantity;
+    const current = Number.parseInt(source, 10) || 1;
     commitQuantity(item, Math.max(1, current - 1));
   };
   const incQty = (item) => {
-    const current = Number.parseInt(qtyDrafts[item.id] ?? item.quantity, 10) || 1;
+    const key = getQuantityKey(item);
+    const source = key && qtyDrafts[key] !== undefined ? qtyDrafts[key] : item.quantity;
+    const current = Number.parseInt(source, 10) || 1;
     commitQuantity(item, current + 1);
   };
 
@@ -168,7 +221,7 @@ function Checkout() {
   const handleAddress = (e) => {
     const idx = Number(e.target.value);
     setSelectedAddressIndex(idx);
-    setSelectedAddress(user.addresses[idx]);
+    setSelectedAddress(addresses[idx]);
     persistPrefs(idx, undefined);
   };
 
@@ -179,19 +232,38 @@ function Checkout() {
   };
 
   const handleOrder = (e) => {
+    if (isSubmitting) return;
     if (selectedAddress && paymentMethod) {
       // persist choices
       persistPrefs(selectedAddressIndex, paymentMethod);
-      const normalizedItems = items.map((it) => ({
-        product: it.product,
-        quantity: it.quantity,
-        color: it.color,
-        size: it.size,
-      }));
+      const normalizedItems = items.map((it) => {
+        let qty = Number(it?.quantity);
+        const draftVal = getDraftQuantityValue(it);
+        if (draftVal !== undefined) {
+          const draftNum = Number.parseInt(draftVal, 10);
+          if (Number.isFinite(draftNum) && draftNum > 0) {
+            qty = draftNum;
+          }
+        }
+        if (!Number.isFinite(qty) || qty <= 0) {
+          qty = 1;
+        }
+        return {
+          product: it.product,
+          quantity: qty,
+          color: it.color,
+          size: it.size,
+        };
+      });
+      const normalizedTotalItems = normalizedItems.reduce((sum, it) => sum + it.quantity, 0);
+      const normalizedTotalAmount = normalizedItems.reduce(
+        (sum, it) => sum + getUnitPrice(it.product) * it.quantity,
+        0
+      );
       const order = {
         items: normalizedItems,
-        totalAmount,
-        totalItems,
+        totalAmount: normalizedTotalAmount,
+        totalItems: normalizedTotalItems,
         user: user.id,
         paymentMethod,
         selectedAddress,
@@ -203,6 +275,10 @@ function Checkout() {
     }
   };
 
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
   // Redirects
   if (!isBuyNow && !items.length) return <Navigate to="/" replace />;
   if (currentOrder && currentOrder.paymentMethod === 'cash')
@@ -212,7 +288,7 @@ function Checkout() {
 
   return (
     <>
-      {status === 'loading' ? (
+      {isSubmitting ? (
         <Grid
           height="80"
           width="80"
@@ -244,7 +320,7 @@ function Checkout() {
                   dispatch(
                     updateUserAsync({
                       ...user,
-                      addresses: [...user.addresses, data],
+                      addresses: [...addresses, data],
                     })
                   );
                   reset();
@@ -351,7 +427,7 @@ function Checkout() {
               <div className="mt-10">
                 <h2 className="text-lg font-semibold text-emerald-800">Choose Address</h2>
                 <ul>
-                  {user.addresses.map((address, index) => (
+                  {addresses.map((address, index) => (
                     <li
                       key={index}
                       className="flex justify-between gap-x-6 px-5 py-4 border border-emerald-100 rounded-lg mb-3 bg-white/80"
@@ -457,7 +533,7 @@ function Checkout() {
                                 id={`quantity-${item.id}`}
                                 inputMode="numeric"
                                 pattern="[0-9]*"
-                                value={qtyDrafts[item.id] ?? item.quantity}
+                                value={getInputQuantityValue(item)}
                                 onChange={(e) => onQtyInputChange(item, e.target.value)}
                                 onBlur={() => onQtyInputBlur(item)}
                                 onKeyDown={(e) => onQtyKeyDown(e, item)}
@@ -468,7 +544,7 @@ function Checkout() {
                             <div className="mt-2 text-gray-600">
                               {(() => {
                                 const unit = getUnitPrice(item.product);
-                                const qty = Number(item.quantity) || 0;
+                                const qty = resolveQuantityForTotals(item);
                                 const sub = unit * qty;
                                 return (
                                   <>Subtotal: <span className="font-semibold">${formatMoney(sub)}</span></>
@@ -501,9 +577,15 @@ function Checkout() {
                     Shipping and taxes calculated at checkout.
                   </p>
                   <div className="mt-6">
+                    {orderError && (
+                      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {orderError}
+                      </div>
+                    )}
                     <button
                       onClick={handleOrder}
-                      className="w-full rounded-md bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 transition-all"
+                      disabled={isSubmitting}
+                      className="w-full rounded-md bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Order Now
                     </button>

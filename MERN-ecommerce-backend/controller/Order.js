@@ -112,18 +112,46 @@ exports.fetchOrdersByUser = async (req, res) => {
 };
 
 exports.createOrder = async (req, res) => {
-  const order = new Order(req.body);
-  // here we have to update stocks;
-
-  for (let item of order.items) {
-    let product = await Product.findOne({ _id: item.product.id })
-    product.$inc('stock', -1 * item.quantity);
-    // for optimum performance we should make inventory outside of product.
-    await product.save()
-  }
+  const session = await mongoose.startSession();
 
   try {
-    const doc = await order.save();
+    session.startTransaction();
+
+    const order = new Order(req.body);
+    order.$session(session);
+
+    if (!Array.isArray(order.items) || !order.items.length) {
+      throw new Error('Order must contain at least one item.');
+    }
+
+    for (const item of order.items) {
+      const quantity = Number(item?.quantity) || 0;
+      const rawId = item?.product?.id || item?.product?._id || item?.product;
+
+      if (!rawId) {
+        throw new Error('One or more items are missing a valid product reference.');
+      }
+
+      if (quantity <= 0) {
+        throw new Error('Item quantity must be greater than zero.');
+      }
+
+      const updatedProduct = await Product.findOneAndUpdate(
+        { _id: rawId, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
+        { new: true, session }
+      );
+
+      if (!updatedProduct) {
+        const name = item?.product?.title || item?.product?.name || 'selected product';
+        throw new Error(`The stock selected is not available for ${name}.`);
+      }
+    }
+
+    const doc = await order.save({ session });
+
+    await session.commitTransaction();
+
     const user = await User.findById(order.user)
     let sustainabilityProductIds = [];
 
@@ -217,7 +245,10 @@ exports.createOrder = async (req, res) => {
 
     res.status(201).json(doc);
   } catch (err) {
-    res.status(400).json(err);
+    await session.abortTransaction().catch(() => { });
+    res.status(400).json({ message: err?.message || 'Unable to create order.' });
+  } finally {
+    session.endSession();
   }
 };
 
